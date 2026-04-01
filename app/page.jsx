@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { useAuth } from "./context/AuthContext";
-import { fetchBankEmails } from "./lib/gmailService";
 import { fetchCloudUserData, saveCloudUserData } from "./lib/userDataClient";
-import { parseTransaction } from "./lib/parseTransaction";
+import { fetchGmailTransactions } from "./lib/gmailSyncClient";
 import Layout from "./components/Layout";
 import SummaryCards from "./components/SummaryCards";
 import TransactionTable from "./components/TransactionTable";
@@ -13,6 +13,9 @@ import { useTransactions } from "./context/TransactionContext";
 import BankSummary from "./components/BankSummary";
 import CategoryChart from "./components/CategoryChart";
 import { useRouter } from "next/navigation";
+
+const TRANSACTION_CACHE_VERSION = 1;
+const TRANSACTION_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function readCategoryOverrides() {
   try {
@@ -25,16 +28,68 @@ function readCategoryOverrides() {
   }
 }
 
+function buildTransactionCacheKey(userKey) {
+  return `transactionCache:${userKey}`;
+}
+
+function readTransactionCache(userKey) {
+  try {
+    const raw = localStorage.getItem(buildTransactionCacheKey(userKey));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    if (
+      parsed?.version !== TRANSACTION_CACHE_VERSION ||
+      !Array.isArray(parsed?.transactions)
+    ) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeTransactionCache(userKey, transactions) {
+  localStorage.setItem(
+    buildTransactionCacheKey(userKey),
+    JSON.stringify({
+      version: TRANSACTION_CACHE_VERSION,
+      savedAt: Date.now(),
+      transactions,
+    })
+  );
+}
+
+function applyOverrides(transactions, overrides) {
+  return transactions.map((transaction) => ({
+    ...transaction,
+    category: overrides[transaction.id] || transaction.category,
+  }));
+}
+
+function isQuotaError(message) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("quota exceeded") ||
+    normalized.includes("queries per minute") ||
+    normalized.includes("rate limit")
+  );
+}
+
 
 
 export default function Home() {
-  const { token, login } = useAuth();
+  const { token, login, clearSession } = useAuth();
   const { setTransactions, filteredTransactions } = useTransactions();
   const router = useRouter();
   const idleTimer = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [syncError, setSyncError] = useState("");
+  const [syncWarning, setSyncWarning] = useState("");
 
 
   // INITIAL AUTH + PIN CHECK
@@ -83,14 +138,22 @@ export default function Home() {
 
     async function load() {
       setLoading(true);
+      setSyncError("");
+      setSyncWarning("");
+      let cachedTransactions = [];
+
       try {
         const localOverrides = readCategoryOverrides();
         let cloudOverrides = {};
+        let userKey = "default";
 
         try {
           const cloudData = await fetchCloudUserData(token);
           if (cloudData?.categoryOverrides && typeof cloudData.categoryOverrides === "object") {
             cloudOverrides = cloudData.categoryOverrides;
+          }
+          if (cloudData?.userKey) {
+            userKey = cloudData.userKey;
           }
         } catch (error) {
           console.warn("Cloud sync read failed:", error);
@@ -108,27 +171,67 @@ export default function Home() {
           });
         }
 
-        const emails = await fetchBankEmails(token);
+        const cache = readTransactionCache(userKey);
+        cachedTransactions = applyOverrides(cache?.transactions || [], overrides);
 
-        const parsed = emails
-          .map(parseTransaction)
-          .filter(Boolean)
-          .map(t => ({
-            ...t,
-            category: overrides[t.id] || t.category,
-          }))
-          .sort((a, b) => b.timestamp - a.timestamp);
+        if (cachedTransactions.length > 0) {
+          setTransactions(cachedTransactions);
+        }
+
+        if (
+          cache?.savedAt &&
+          Date.now() - Number(cache.savedAt) < TRANSACTION_CACHE_TTL_MS
+        ) {
+          setLoading(false);
+          return;
+        }
+
+        const gmailData = await fetchGmailTransactions(token);
+
+        const parsed = applyOverrides(
+          gmailData?.transactions || [],
+          overrides
+        );
 
         setTransactions(parsed);
+        writeTransactionCache(gmailData?.userKey || userKey, parsed);
       } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to sync Gmail";
+
+        if (err?.status === 429 || isQuotaError(message)) {
+          console.warn("Gmail quota limited sync:", message);
+          if (cachedTransactions.length > 0) {
+            setSyncWarning(
+              "Showing saved data. Gmail rate limit was hit, so live sync will resume automatically in a few minutes."
+            );
+            return;
+          }
+          setSyncError(
+            "Gmail rate limit was hit. Wait a minute, then refresh and try again."
+          );
+          return;
+        }
+
+        if (err?.status === 401 || message.includes("401") || message.includes("403")) {
+          console.warn("Gmail auth error:", message);
+          clearSession();
+          setTransactions([]);
+          setSyncError(
+            "Gmail access expired or is missing permission. Please reconnect and allow Gmail read access."
+          );
+          return;
+        }
+
         console.error("Fetch Error:", err);
+        setSyncError(message);
       } finally {
         setLoading(false);
       }
     }
 
     load();
-  }, [token, setTransactions]);
+  }, [clearSession, token, setTransactions]);
 
 
   // LOADING
@@ -167,6 +270,22 @@ export default function Home() {
           <p className="text-xs text-slate-400 mt-6">
             Data sync is enabled across your devices.
           </p>
+
+          <div className="mt-6 flex items-center justify-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+            <Link
+              href="/privacy"
+              className="transition hover:text-blue-600 dark:hover:text-blue-300"
+            >
+              Privacy
+            </Link>
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <Link
+              href="/terms"
+              className="transition hover:text-blue-600 dark:hover:text-blue-300"
+            >
+              Terms
+            </Link>
+          </div>
         </div>
 
       </div>
@@ -179,8 +298,23 @@ export default function Home() {
     <Layout>
       {loading ? (
         <div className="flex justify-center py-24">Syncing...</div>
+      ) : syncError ? (
+        <div className="text-center py-24 space-y-4">
+          <p className="text-rose-500">{syncError}</p>
+          <button
+            onClick={login}
+            className="bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-semibold shadow-lg transition-all active:scale-95"
+          >
+            Reconnect Gmail
+          </button>
+        </div>
       ) : filteredTransactions.length > 0 ? (
         <>
+          {syncWarning ? (
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+              {syncWarning}
+            </div>
+          ) : null}
           <SummaryCards transactions={filteredTransactions} />
           <BankSummary transactions={filteredTransactions} />
 

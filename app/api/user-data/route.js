@@ -1,36 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "../../lib/supabaseAdmin";
-
-async function getGoogleUser(accessToken) {
-  const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
-
-  if (!res.ok) return null;
-
-  const user = await res.json();
-  if (!user?.sub) return null;
-
-  return user;
-}
-
-async function getGmailUser(accessToken) {
-  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
-
-  if (!res.ok) return null;
-
-  const profile = await res.json();
-  if (!profile?.emailAddress) return null;
-
-  return {
-    sub: profile.emailAddress.toLowerCase(),
-    email: profile.emailAddress.toLowerCase(),
-  };
-}
+import { getUserFromAccessToken } from "../../lib/googleIdentity";
 
 async function getUserFromRequest(req) {
   const auth = req.headers.get("authorization") || "";
@@ -38,10 +8,7 @@ async function getUserFromRequest(req) {
 
   if (!accessToken) return null;
 
-  const user = await getGoogleUser(accessToken);
-  if (user) return user;
-
-  return getGmailUser(accessToken);
+  return getUserFromAccessToken(accessToken);
 }
 
 export async function GET(req) {
@@ -65,6 +32,7 @@ export async function GET(req) {
 
     return NextResponse.json({
       categoryOverrides: data?.category_overrides || {},
+      userKey: user.sub,
     });
   } catch (error) {
     return NextResponse.json(

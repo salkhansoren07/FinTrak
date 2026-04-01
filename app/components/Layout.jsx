@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
@@ -29,8 +30,31 @@ export default function Layout({ children }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         <Navbar onOpenMenu={() => setMobileSidebarOpen(true)} />
-        <main className="p-3 sm:p-4 md:p-8 overflow-y-auto overflow-x-hidden w-full">
-          {children}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full">
+          <div className="p-3 sm:p-4 md:p-8">
+            {children}
+          </div>
+
+          <footer className="border-t border-slate-200/80 px-4 py-4 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400 sm:px-6 md:px-8">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p>FinTrack legal information</p>
+
+              <div className="flex items-center gap-4">
+                <Link
+                  href="/privacy"
+                  className="transition hover:text-blue-600 dark:hover:text-blue-300"
+                >
+                  Privacy
+                </Link>
+                <Link
+                  href="/terms"
+                  className="transition hover:text-blue-600 dark:hover:text-blue-300"
+                >
+                  Terms
+                </Link>
+              </div>
+            </div>
+          </footer>
         </main>
       </div>
     </div>

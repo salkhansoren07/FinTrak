@@ -1,7 +1,6 @@
 export async function fetchBankEmails(token) {
-  const now = new Date();
-  const firstDay = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, "0")}/01`;
-  const query = `after:${firstDay} (debited OR credited OR transaction)`;
+  const query =
+    '(debited OR credited OR transaction OR txn OR upi OR utr OR withdrawn OR deposited OR "available bal" OR "a/c")';
   const headers = { Authorization: `Bearer ${token}` };
 
   const messages = [];
@@ -17,7 +16,24 @@ export async function fetchBankEmails(token) {
     );
 
     if (!listRes.ok) {
-      throw new Error(`Gmail list fetch failed: ${listRes.status}`);
+      let errorMessage = `Gmail list fetch failed: ${listRes.status}`;
+
+      try {
+        const errorBody = await listRes.json();
+        const gmailStatus = errorBody?.error?.status;
+        const gmailMessage = errorBody?.error?.message;
+
+        if (gmailStatus || gmailMessage) {
+          errorMessage =
+            `Gmail list fetch failed: ${listRes.status}` +
+            `${gmailStatus ? ` ${gmailStatus}` : ""}` +
+            `${gmailMessage ? ` - ${gmailMessage}` : ""}`;
+        }
+      } catch {
+        // Ignore JSON parsing errors and keep the status-only message.
+      }
+
+      throw new Error(errorMessage);
     }
 
     const listData = await listRes.json();
@@ -29,17 +45,24 @@ export async function fetchBankEmails(token) {
 
   if (!messages.length) return [];
 
-  const detailResults = await Promise.allSettled(
-    messages.map(async (msg) => {
-      const r = await fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
-        { headers }
-      );
-      if (!r.ok) {
-        throw new Error(`Gmail message fetch failed: ${r.status} (${msg.id})`);
+  const fetchMessage = async (id, attempt = 0) => {
+    const r = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
+      { headers }
+    );
+
+    if (!r.ok) {
+      if (attempt < 1 && r.status >= 500) {
+        return fetchMessage(id, attempt + 1);
       }
-      return r.json();
-    })
+      throw new Error(`Gmail message fetch failed: ${r.status} (${id})`);
+    }
+
+    return r.json();
+  };
+
+  const detailResults = await Promise.allSettled(
+    messages.map((msg) => fetchMessage(msg.id))
   );
 
   return detailResults
