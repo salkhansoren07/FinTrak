@@ -12,7 +12,7 @@ import BankSummary from "./components/BankSummary";
 import CategoryChart from "./components/CategoryChart";
 
 export default function Home() {
-  const { token, login, authError } = useAuth();
+  const { token, login } = useAuth();
   const { filteredTransactions, loading, syncError, syncWarning } =
     useTransactions();
 
@@ -48,12 +48,6 @@ export default function Home() {
           >
             Connect Gmail Account
           </button>
-
-          {authError ? (
-            <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-left text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200">
-              {authError}
-            </p>
-          ) : null}
 
           <p className="text-xs text-slate-400 mt-6">
             Data sync is enabled across your devices.

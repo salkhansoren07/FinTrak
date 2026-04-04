@@ -76,7 +76,6 @@ Set these in Vercel Project -> Settings -> Environment Variables:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
-- `NEXT_PUBLIC_GOOGLE_REDIRECT_URI` (recommended: your site origin, for example `https://your-app.vercel.app`)
 
 Google OAuth scopes required by this app:
 
@@ -86,15 +85,6 @@ Google OAuth scopes required by this app:
 - `profile`
 
 For local development, add the same keys to `.env.local`.
-
-### 2b. Configure Google OAuth client
-
-In Google Cloud Console -> APIs & Services -> Credentials -> your OAuth 2.0 Client ID:
-
-- Add each app URL under **Authorized JavaScript origins** (for example `http://localhost:3000` and your production domain).
-- Add each app URL under **Authorized redirect URIs** (must exactly match `NEXT_PUBLIC_GOOGLE_REDIRECT_URI`).
-
-If you see `Error 400: redirect_uri_mismatch`, the redirect URI sent by the app does not exactly match the URI configured in Google Cloud Console.
 
 ### 3. Redeploy
 
