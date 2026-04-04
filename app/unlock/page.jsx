@@ -55,7 +55,7 @@ export default function Unlock() {
           <Lock className="text-blue-600" />
         </div>
 
-        <h2 className="text-2xl font-semibold mb-1">Unlock FinTrack</h2>
+        <h2 className="text-2xl font-semibold mb-1">Unlock FinTrak</h2>
         <p className="text-slate-500 text-sm mb-6">
           Enter your 6 digit passcode
         </p>

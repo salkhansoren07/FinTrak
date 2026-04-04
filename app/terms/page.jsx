@@ -1,33 +1,33 @@
 import LegalPageLayout from "../components/LegalPageLayout";
 
 export const metadata = {
-  title: "Terms of Service | FinTrack",
-  description: "Terms of Service for using FinTrack.",
+  title: "Terms of Service | FinTrak",
+  description: "Terms of Service for using FinTrak.",
 };
 
 export default function TermsPage() {
   return (
     <LegalPageLayout
       eyebrow="Terms of Service"
-      title="Terms for using FinTrack"
-      description="These Terms of Service govern access to and use of the FinTrack application and related services."
+      title="Terms for using FinTrak"
+      description="These Terms of Service govern access to and use of the FinTrak application and related services."
       effectiveDate="April 1, 2026"
     >
       <h2>Acceptance of terms</h2>
       <p>
-        By using FinTrack, you agree to these Terms of Service. If you do not
+        By using FinTrak, you agree to these Terms of Service. If you do not
         agree, do not use the app.
       </p>
 
-      <h2>What FinTrack provides</h2>
+      <h2>What FinTrak provides</h2>
       <p>
-        FinTrack is a finance dashboard that helps users review transaction-like
+        FinTrak is a finance dashboard that helps users review transaction-like
         Gmail messages, extract payment details, and organize those details into
         summaries, charts, and transaction views.
       </p>
 
       <h2>User responsibilities</h2>
-      <p>When using FinTrack, you agree to:</p>
+      <p>When using FinTrak, you agree to:</p>
       <ul>
         <li>use the app only with accounts and data you are authorized to access</li>
         <li>provide accurate information when connecting authentication services</li>
@@ -37,7 +37,7 @@ export default function TermsPage() {
 
       <h2>Permitted use</h2>
       <p>
-        You may use FinTrack for personal or internal business analysis unless a
+        You may use FinTrak for personal or internal business analysis unless a
         separate written agreement says otherwise.
       </p>
 
@@ -52,7 +52,7 @@ export default function TermsPage() {
 
       <h2>Third-party services</h2>
       <p>
-        FinTrack depends on third-party services, including Google, hosting
+        FinTrak depends on third-party services, including Google, hosting
         providers, and optional backend or database providers. Your use of those
         services may also be governed by their own terms and policies.
       </p>
@@ -65,7 +65,7 @@ export default function TermsPage() {
 
       <h2>No financial advice</h2>
       <p>
-        FinTrack is a software tool for organizing and reviewing information. It
+        FinTrak is a software tool for organizing and reviewing information. It
         does not provide accounting, tax, investment, compliance, or legal
         advice. You remain responsible for verifying all information before
         acting on it.
@@ -73,14 +73,14 @@ export default function TermsPage() {
 
       <h2>Disclaimer of warranties</h2>
       <p>
-        FinTrack is provided on an &quot;as is&quot; and &quot;as available&quot;
+        FinTrak is provided on an &quot;as is&quot; and &quot;as available&quot;
         basis without warranties of any kind, whether express or implied, to the
         fullest extent permitted by law.
       </p>
 
       <h2>Limitation of liability</h2>
       <p>
-        To the fullest extent permitted by law, the operators of FinTrack are
+        To the fullest extent permitted by law, the operators of FinTrak are
         not liable for indirect, incidental, special, consequential, or punitive
         damages, or for loss of data, profits, or business opportunities arising
         from use of the service.
@@ -88,7 +88,7 @@ export default function TermsPage() {
 
       <h2>Termination</h2>
       <p>
-        Access to FinTrack may be suspended or terminated at any time if use of
+        Access to FinTrak may be suspended or terminated at any time if use of
         the service presents security, abuse, legal, or operational risk.
       </p>
 

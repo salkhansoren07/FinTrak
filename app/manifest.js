@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: "FinTrack",
-    short_name: "FinTrack",
+    name: "FinTrak",
+    short_name: "FinTrak",
     description: "Smart expense tracking from Gmail",
     start_url: "/",
     scope: "/",

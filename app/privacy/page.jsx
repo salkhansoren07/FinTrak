@@ -1,27 +1,27 @@
 import LegalPageLayout from "../components/LegalPageLayout";
 
 export const metadata = {
-  title: "Privacy Policy | FinTrack",
-  description: "Privacy Policy for FinTrack and its Gmail-based expense tracking features.",
+  title: "Privacy Policy | FinTrak",
+  description: "Privacy Policy for FinTrak and its Gmail-based expense tracking features.",
 };
 
 export default function PrivacyPage() {
   return (
     <LegalPageLayout
       eyebrow="Privacy Policy"
-      title="How FinTrack handles your data"
-      description="This Privacy Policy explains what information FinTrack processes, why it is used, and the choices available to people who use the app."
+      title="How FinTrak handles your data"
+      description="This Privacy Policy explains what information FinTrak processes, why it is used, and the choices available to people who use the app."
       effectiveDate="April 1, 2026"
     >
       <h2>Overview</h2>
       <p>
-        FinTrack is a personal finance dashboard that helps users review
+        FinTrak is a personal finance dashboard that helps users review
         transaction-related Gmail messages, extract payment details, and organize
         that information into a transaction feed, charts, and summaries.
       </p>
 
-      <h2>Information FinTrack processes</h2>
-      <p>Depending on how the app is used, FinTrack may process:</p>
+      <h2>Information FinTrak processes</h2>
+      <p>Depending on how the app is used, FinTrak may process:</p>
       <ul>
         <li>basic Google account profile information needed for sign-in</li>
         <li>an OAuth access token used to request Gmail data on the user&apos;s behalf</li>
@@ -37,7 +37,7 @@ export default function PrivacyPage() {
       </ul>
 
       <h2>How the information is used</h2>
-      <p>FinTrack uses this information to:</p>
+      <p>FinTrak uses this information to:</p>
       <ul>
         <li>authenticate the user and maintain an active session</li>
         <li>retrieve transaction-related Gmail messages requested by the user</li>
@@ -49,9 +49,9 @@ export default function PrivacyPage() {
 
       <h2>Gmail data access</h2>
       <p>
-        FinTrack accesses Gmail only after the user grants permission through
+        FinTrak accesses Gmail only after the user grants permission through
         Google OAuth. Gmail data is used to identify and display transaction
-        information inside the app. FinTrack does not sell Gmail data and does
+        information inside the app. FinTrak does not sell Gmail data and does
         not use Gmail data for advertising.
       </p>
       <p>
@@ -70,11 +70,11 @@ export default function PrivacyPage() {
       <p>
         Data is retained only for as long as needed to operate the service,
         improve reliability, or comply with legal obligations. Operators of a
-        deployed copy of FinTrack may choose their own retention periods.
+        deployed copy of FinTrak may choose their own retention periods.
       </p>
 
       <h2>Third-party services</h2>
-      <p>FinTrack may rely on services such as:</p>
+      <p>FinTrak may rely on services such as:</p>
       <ul>
         <li>Google for authentication and Gmail API access</li>
         <li>hosting providers such as Vercel for app delivery</li>
@@ -86,7 +86,7 @@ export default function PrivacyPage() {
 
       <h2>Security</h2>
       <p>
-        FinTrack uses reasonable measures to protect data in transit and limit
+        FinTrak uses reasonable measures to protect data in transit and limit
         access to authenticated users. No system can guarantee absolute
         security, so users should avoid connecting accounts on untrusted devices
         and should revoke access if they believe their Google account has been
@@ -103,7 +103,7 @@ export default function PrivacyPage() {
 
       <h2>Children&apos;s privacy</h2>
       <p>
-        FinTrack is not directed to children under 13 and is not intended for
+        FinTrak is not directed to children under 13 and is not intended for
         use by children.
       </p>
 

@@ -10,6 +10,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useTransactions } from "../context/TransactionContext";
 import Link from "next/link";
+import Image from "next/image";
 
 function formatMonthLocal(date) {
   const year = date.getFullYear();
@@ -76,9 +77,24 @@ export default function Sidebar({ onClose }) {
       <div>
 
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-bold text-blue-600">
-          💰 FinTrack
-          </h1>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/fintrak-logo.png"
+              alt="FinTrak logo"
+              width={44}
+              height={44}
+              className="h-11 w-11 rounded-xl object-cover shadow-md"
+              priority
+            />
+            <div>
+              <h1 className="text-xl font-bold text-blue-600 leading-none">
+                FinTrak
+              </h1>
+              <p className="mt-1 text-xs text-slate-400">
+                Smart expense tracking
+              </p>
+            </div>
+          </div>
           {onClose && (
             <button
               type="button"

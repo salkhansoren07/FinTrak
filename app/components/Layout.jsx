@@ -37,7 +37,7 @@ export default function Layout({ children }) {
 
           <footer className="border-t border-slate-200/80 px-4 py-4 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400 sm:px-6 md:px-8">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p>FinTrack legal information</p>
+              <p>FinTrak legal information</p>
 
               <div className="flex items-center gap-4">
                 <Link

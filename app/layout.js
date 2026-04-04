@@ -2,16 +2,17 @@ import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import Script from "next/script";
 import { TransactionProvider } from "./context/TransactionContext";
+import AppShell from "./components/AppShell";
 
 export const metadata = {
-  title: "FinTrack",
+  title: "FinTrak",
   description: "Smart expense tracking from Gmail",
-  applicationName: "FinTrack",
+  applicationName: "FinTrak",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "FinTrack",
+    title: "FinTrak",
   },
   formatDetection: {
     telephone: false,
@@ -39,7 +40,7 @@ export default function RootLayout({ children }) {
 
         <AuthProvider>
           <TransactionProvider>
-              {children}
+            <AppShell>{children}</AppShell>
           </TransactionProvider>
         </AuthProvider>
 

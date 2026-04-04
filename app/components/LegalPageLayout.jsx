@@ -23,7 +23,7 @@ export default function LegalPageLayout({
                 href="/"
                 className="rounded-full border border-slate-200/80 bg-white/80 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-300"
               >
-                Back to FinTrack
+                Back to FinTrak
               </Link>
             </div>
 
