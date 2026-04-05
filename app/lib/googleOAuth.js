@@ -19,6 +19,13 @@ function getGoogleOAuthConfig() {
   return { clientId, clientSecret };
 }
 
+export function hasGoogleOAuthConfig() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
+      process.env.GOOGLE_CLIENT_SECRET
+  );
+}
+
 export function buildGoogleRedirectUri(req) {
   const url = new URL(req.url);
   return `${url.origin}/api/auth/google/callback`;

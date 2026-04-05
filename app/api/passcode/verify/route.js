@@ -3,6 +3,17 @@ import { verifyPassword } from "../../../lib/passwords";
 import { readSessionFromRequest } from "../../../lib/serverAuth";
 import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../../lib/supabaseAdmin";
 import { getFintrakUserById } from "../../../lib/fintrakUsers";
+import {
+  applyPasscodeAttemptStateCookie,
+  clearPasscodeAttemptStateCookie,
+  readPasscodeAttemptStateFromRequest,
+} from "../../../lib/serverAuth";
+import {
+  buildPasscodeAttemptCookiePayload,
+  createPasscodeLockedMessage,
+  isPasscodeLocked,
+  registerFailedPasscodeAttempt,
+} from "../../../lib/passcodeSecurity.mjs";
 
 export async function POST(req) {
   try {
@@ -16,6 +27,19 @@ export async function POST(req) {
         { error: "Supabase is not configured for passcodes." },
         { status: 500 }
       );
+    }
+
+    const attemptState = readPasscodeAttemptStateFromRequest(req);
+    if (isPasscodeLocked(attemptState)) {
+      const response = NextResponse.json(
+        { error: createPasscodeLockedMessage(attemptState) },
+        { status: 429 }
+      );
+      applyPasscodeAttemptStateCookie(
+        response,
+        buildPasscodeAttemptCookiePayload(attemptState)
+      );
+      return response;
     }
 
     const body = await req.json();
@@ -51,13 +75,26 @@ export async function POST(req) {
     const matches = await verifyPassword(passcode, user.passcodeHash);
 
     if (!matches) {
-      return NextResponse.json(
-        { error: "Incorrect passcode." },
-        { status: 401 }
+      const nextAttemptState = registerFailedPasscodeAttempt(attemptState);
+      const locked = isPasscodeLocked(nextAttemptState);
+      const response = NextResponse.json(
+        {
+          error: locked
+            ? createPasscodeLockedMessage(nextAttemptState)
+            : "Incorrect passcode.",
+        },
+        { status: locked ? 429 : 401 }
       );
+      applyPasscodeAttemptStateCookie(
+        response,
+        buildPasscodeAttemptCookiePayload(nextAttemptState)
+      );
+      return response;
     }
 
-    return NextResponse.json({ ok: true });
+    const response = NextResponse.json({ ok: true });
+    clearPasscodeAttemptStateCookie(response);
+    return response;
   } catch (error) {
     console.error("Unexpected passcode verify error:", error);
     return NextResponse.json(

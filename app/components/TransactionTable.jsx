@@ -1,29 +1,22 @@
 "use client";
 import { saveCloudUserData } from "../lib/userDataClient";
+import {
+  readCategoryOverrides,
+  writeCategoryOverrides,
+} from "../lib/categoryOverridesStorage.mjs";
+import { useAuth } from "../context/AuthContext";
 
 const CATEGORIES = ["Food", "Shopping", "Transfer", "Bills", "Other"];
 
-function readCategoryOverrides() {
-  try {
-    const raw = localStorage.getItem("categoryOverrides");
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 export default function TransactionTable({ transactions = [] }) {
+  const { user } = useAuth();
+
   const updateCategory = async (id, category) => {
-    const existing = readCategoryOverrides();
+    const existing = readCategoryOverrides(user?.id);
 
     existing[id] = category;
 
-    localStorage.setItem(
-      "categoryOverrides",
-      JSON.stringify(existing)
-    );
+    writeCategoryOverrides(user?.id, existing);
 
     try {
       await saveCloudUserData(existing);

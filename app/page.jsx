@@ -82,6 +82,10 @@ const FAQS = [
 ];
 
 const AUTH_ERROR_MESSAGES = {
+  google_oauth_not_configured:
+    "Google sign-in is not configured on the server yet. Add the Google OAuth client ID and client secret in production, then try again.",
+  oauth_start_failed:
+    "FinTrak could not start Google sign-in. Check the production Google OAuth configuration and try again.",
   oauth_state_invalid:
     "The Google sign-in session expired before it finished. Please try connecting Gmail again.",
   oauth_callback_failed:

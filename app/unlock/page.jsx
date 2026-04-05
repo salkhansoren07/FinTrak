@@ -10,7 +10,10 @@ import {
 
 export default function Unlock() {
   const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetError, setResetError] = useState("");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { logout, user } = useAuth();
@@ -30,26 +33,52 @@ export default function Unlock() {
         body: JSON.stringify({ passcode: pin }),
       });
 
+      const payload = await res.json().catch(() => ({}));
+
       if (res.ok) {
         setPinVerified(user.id, true);
         router.push("/");
         return;
       }
 
-      setError(true);
-      setPin("");
-      setTimeout(() => setError(false), 400);
+      setError(payload?.error || "Incorrect passcode.");
+      if (res.status !== 429) {
+        setPin("");
+        setTimeout(() => setError(""), 1000);
+      }
     });
   };
 
   const resetPin = () => {
+    if (!showResetForm) {
+      setShowResetForm(true);
+      setResetError("");
+      return;
+    }
+
+    if (!resetPassword) {
+      setResetError("Enter your current account password to reset the passcode.");
+      return;
+    }
+
     if (!confirm("Reset PIN? FinTrak sign-in will be required again.")) return;
 
     startTransition(async () => {
       if (user?.id) {
-        await fetch("/api/passcode", {
+        const res = await fetch("/api/passcode", {
           method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ password: resetPassword }),
         }).catch(() => null);
+
+        if (!res?.ok) {
+          const payload = await res?.json().catch(() => ({}));
+          setResetError(payload?.error || "Could not reset your passcode.");
+          return;
+        }
+
         clearPinVerification(user.id);
       }
 
@@ -63,7 +92,7 @@ export default function Unlock() {
 
       <div
         className={`glass-card p-10 rounded-3xl w-[340px] text-center transition ${
-          error ? "animate-shake" : ""
+          error && !error.includes("Too many incorrect") ? "animate-shake" : ""
         }`}
       >
         <div className="mx-auto w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4">
@@ -74,6 +103,12 @@ export default function Unlock() {
         <p className="text-slate-500 text-sm mb-6">
           Enter your 6 digit passcode
         </p>
+
+        {error ? (
+          <p className="mb-4 rounded-xl bg-rose-100 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">
+            {error}
+          </p>
+        ) : null}
 
         {/* PIN DOTS */}
         <div className="flex justify-center gap-3 mb-6">
@@ -113,8 +148,28 @@ export default function Unlock() {
           onClick={resetPin}
           className="mt-4 text-sm text-slate-400 hover:text-red-500 transition"
         >
-          Forgot PIN?
+          {showResetForm ? "Confirm PIN reset" : "Forgot PIN?"}
         </button>
+
+        {showResetForm ? (
+          <div className="mt-4 space-y-3 text-left">
+            <input
+              type="password"
+              value={resetPassword}
+              onChange={(event) => setResetPassword(event.target.value)}
+              placeholder="Current account password"
+              className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+            {resetError ? (
+              <p className="rounded-xl bg-rose-100 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">
+                {resetError}
+              </p>
+            ) : null}
+            <p className="text-xs text-slate-400">
+              Resetting the passcode now requires your account password.
+            </p>
+          </div>
+        ) : null}
 
         <p className="text-xs text-slate-400 mt-4">
           Protected by your FinTrak account

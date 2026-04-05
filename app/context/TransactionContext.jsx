@@ -6,22 +6,16 @@ import { useAuth } from "./AuthContext";
 import { fetchCloudUserData, saveCloudUserData } from "../lib/userDataClient";
 import { fetchGmailTransactions } from "../lib/gmailSyncClient";
 import { isSessionSetupRoute, readClientSession } from "../lib/clientSession";
+import {
+  clearLegacyCategoryOverrides,
+  readCategoryOverrides,
+  writeCategoryOverrides,
+} from "../lib/categoryOverridesStorage.mjs";
 
 const TransactionContext = createContext();
 
 const TRANSACTION_CACHE_VERSION = 1;
 const TRANSACTION_CACHE_TTL_MS = 5 * 60 * 1000;
-
-function readCategoryOverrides() {
-  try {
-    const raw = localStorage.getItem("categoryOverrides");
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
 
 function buildTransactionCacheKey(userKey) {
   return `transactionCache:${userKey}`;
@@ -116,7 +110,7 @@ export function TransactionProvider({ children }) {
       let cachedTransactions = [];
 
       try {
-        const localOverrides = readCategoryOverrides();
+        const localOverrides = readCategoryOverrides(user?.id);
         let cloudOverrides = {};
         let userKey = "default";
 
@@ -136,7 +130,8 @@ export function TransactionProvider({ children }) {
         }
 
         const overrides = { ...cloudOverrides, ...localOverrides };
-        localStorage.setItem("categoryOverrides", JSON.stringify(overrides));
+        writeCategoryOverrides(user?.id, overrides);
+        clearLegacyCategoryOverrides();
 
         if (
           Object.keys(localOverrides).length > 0 &&

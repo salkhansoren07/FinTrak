@@ -3,6 +3,7 @@ import { deriveSecret } from "./serverSecrets";
 
 const SESSION_COOKIE_NAME = "fintrak_session";
 const OAUTH_COOKIE_NAME = "fintrak_oauth";
+const PASSCODE_ATTEMPTS_COOKIE_NAME = "fintrak_passcode_attempts";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 30;
 const OAUTH_DURATION_SECONDS = 60 * 10;
 
@@ -46,9 +47,33 @@ function decodeSignedPayload(value) {
   }
 }
 
-export function readSessionFromRequest(req) {
-  const value = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+function setCookie(response, name, value, maxAge) {
+  response.cookies.set({
+    name,
+    value,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProduction(),
+    path: "/",
+    maxAge,
+  });
+}
+
+function setSignedCookie(response, name, payload, maxAge) {
+  setCookie(response, name, encodeSignedPayload(payload), maxAge);
+}
+
+function clearCookie(response, name) {
+  setCookie(response, name, "", 0);
+}
+
+function readSignedCookie(req, name) {
+  const value = req.cookies.get(name)?.value;
   return decodeSignedPayload(value);
+}
+
+export function readSessionFromRequest(req) {
+  return readSignedCookie(req, SESSION_COOKIE_NAME);
 }
 
 export function applySessionCookie(response, user) {
@@ -59,57 +84,47 @@ export function applySessionCookie(response, user) {
     exp: Date.now() + SESSION_DURATION_SECONDS * 1000,
   };
 
-  response.cookies.set({
-    name: SESSION_COOKIE_NAME,
-    value: encodeSignedPayload(payload),
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isProduction(),
-    path: "/",
-    maxAge: SESSION_DURATION_SECONDS,
-  });
+  setSignedCookie(response, SESSION_COOKIE_NAME, payload, SESSION_DURATION_SECONDS);
 }
 
 export function clearSessionCookie(response) {
-  response.cookies.set({
-    name: SESSION_COOKIE_NAME,
-    value: "",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isProduction(),
-    path: "/",
-    maxAge: 0,
-  });
+  clearCookie(response, SESSION_COOKIE_NAME);
 }
 
 export function readOAuthFlowFromRequest(req) {
-  const value = req.cookies.get(OAUTH_COOKIE_NAME)?.value;
-  return decodeSignedPayload(value);
+  return readSignedCookie(req, OAUTH_COOKIE_NAME);
 }
 
 export function applyOAuthFlowCookie(response, payload) {
-  response.cookies.set({
-    name: OAUTH_COOKIE_NAME,
-    value: encodeSignedPayload({
+  setSignedCookie(
+    response,
+    OAUTH_COOKIE_NAME,
+    {
       ...payload,
       exp: Date.now() + OAUTH_DURATION_SECONDS * 1000,
-    }),
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isProduction(),
-    path: "/",
-    maxAge: OAUTH_DURATION_SECONDS,
-  });
+    },
+    OAUTH_DURATION_SECONDS
+  );
 }
 
 export function clearOAuthFlowCookie(response) {
-  response.cookies.set({
-    name: OAUTH_COOKIE_NAME,
-    value: "",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: isProduction(),
-    path: "/",
-    maxAge: 0,
-  });
+  clearCookie(response, OAUTH_COOKIE_NAME);
+}
+
+export function readPasscodeAttemptStateFromRequest(req) {
+  return readSignedCookie(req, PASSCODE_ATTEMPTS_COOKIE_NAME);
+}
+
+export function applyPasscodeAttemptStateCookie(response, payload) {
+  if (!payload?.exp) {
+    clearPasscodeAttemptStateCookie(response);
+    return;
+  }
+
+  const maxAge = Math.max(1, Math.ceil((payload.exp - Date.now()) / 1000));
+  setSignedCookie(response, PASSCODE_ATTEMPTS_COOKIE_NAME, payload, maxAge);
+}
+
+export function clearPasscodeAttemptStateCookie(response) {
+  clearCookie(response, PASSCODE_ATTEMPTS_COOKIE_NAME);
 }
