@@ -11,12 +11,12 @@ export default function manifest() {
     theme_color: "#020617",
     icons: [
       {
-        src: "/icon",
+        src: "/icon.png",
         sizes: "512x512",
         type: "image/png",
       },
       {
-        src: "/apple-icon",
+        src: "/apple-icon.png",
         sizes: "180x180",
         type: "image/png",
       },

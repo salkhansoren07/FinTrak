@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -11,8 +12,10 @@ import {
   Lock,
   Mail,
   MailCheck,
+  Menu,
   ShieldCheck,
   Sparkles,
+  X,
   WalletCards,
 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
@@ -77,6 +80,7 @@ const FAQS = [
 ];
 
 export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { token, login } = useAuth();
   const { filteredTransactions, loading, syncError, syncWarning } =
     useTransactions();
@@ -88,50 +92,73 @@ export default function Home() {
         <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
           <header className="glass-card sticky top-2 z-20 rounded-xl px-3 py-3 sm:top-3 sm:rounded-2xl sm:px-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-3">
-                <Image
-                  src="/fintrak-logo.png"
-                  alt="FinTrak logo"
-                  width={52}
-                  height={52}
-                  className="h-12 w-12 rounded-xl shadow-md"
-                  priority
-                />
-                <div>
-                  <p className="text-lg font-bold text-blue-600">FinTrak</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Smart expense tracking from Gmail
-                  </p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <Image
+                    src="/fintrak-logo.png"
+                    alt="FinTrak logo"
+                    width={52}
+                    height={52}
+                    className="h-12 w-12 rounded-xl shadow-md"
+                    priority
+                  />
+                  <div>
+                    <p className="text-lg font-bold text-blue-600">FinTrak</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Smart expense tracking from Gmail
+                    </p>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen((open) => !open)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50 sm:hidden dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                  aria-expanded={mobileMenuOpen}
+                  aria-controls="mobile-site-nav"
+                >
+                  {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
               </div>
 
-              <nav className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
+              <nav
+                id="mobile-site-nav"
+                className={`${
+                  mobileMenuOpen ? "grid" : "hidden"
+                } grid-cols-2 gap-2 border-t border-slate-200/70 pt-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 sm:border-t-0 sm:pt-0`}
+              >
                 <a
                   href="#faq"
+                  onClick={() => setMobileMenuOpen(false)}
                   className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
                   FAQs
                 </a>
                 <a
                   href="#contact"
+                  onClick={() => setMobileMenuOpen(false)}
                   className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
                   Contact
                 </a>
                 <Link
                   href="/privacy"
+                  onClick={() => setMobileMenuOpen(false)}
                   className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
                   Privacy
                 </Link>
                 <Link
                   href="/terms"
+                  onClick={() => setMobileMenuOpen(false)}
                   className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
                   Terms
                 </Link>
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}
+                  onClick={() => setMobileMenuOpen(false)}
                   className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 sm:col-span-1 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
                   <LifeBuoy size={16} />
@@ -512,7 +539,12 @@ export default function Home() {
             <CategoryChart transactions={filteredTransactions} />
           </div>
 
-          <TransactionTable transactions={filteredTransactions} token={token} />
+          <section id="transactions" className="scroll-mt-6">
+            <TransactionTable
+              transactions={filteredTransactions}
+              token={token}
+            />
+          </section>
         </>
       ) : (
         <div className="text-center py-24">

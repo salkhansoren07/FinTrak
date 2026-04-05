@@ -2,6 +2,12 @@ import { createClient } from "@supabase/supabase-js";
 
 let supabase = null;
 
+export function hasSupabaseAdminConfig() {
+  return Boolean(
+    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
+
 export function getSupabaseAdmin() {
   if (supabase) return supabase;
 

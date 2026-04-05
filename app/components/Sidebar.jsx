@@ -12,6 +12,9 @@ import { useTransactions } from "../context/TransactionContext";
 import Link from "next/link";
 import Image from "next/image";
 
+const navItemClasses =
+  "flex items-center gap-3 rounded-lg p-2 text-gray-700 transition-all hover:text-blue-500 dark:text-gray-300";
+
 function formatMonthLocal(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -108,21 +111,31 @@ export default function Sidebar({ onClose }) {
 
         {/* MAIN NAV */}
         <nav className="space-y-4">
-          <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-blue-500 cursor-pointer p-2 rounded-lg transition-all">
+          <Link
+            href="/"
+            onClick={onClose}
+            className={navItemClasses}
+          >
             <LayoutDashboard size={18} />
             Dashboard
-          </div>
+          </Link>
   
-          <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-blue-500 cursor-pointer p-2 rounded-lg transition-all">
+          <Link
+            href="/#transactions"
+            onClick={onClose}
+            className={navItemClasses}
+          >
             <CreditCard size={18} />
             Transactions
-          </div>
+          </Link>
 
-          <Link href="/individual">
-            <div className="flex items-center gap-3 text-gray-700 dark:text-gray-300 hover:text-blue-500 cursor-pointer p-2 rounded-lg transition-all">
-              <BookUser size={18} />
-              Individual
-            </div>
+          <Link
+            href="/individual"
+            onClick={onClose}
+            className={navItemClasses}
+          >
+            <BookUser size={18} />
+            Individual
           </Link>
 
 

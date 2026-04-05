@@ -9,6 +9,10 @@ export const metadata = {
   description: "Smart expense tracking from Gmail",
   applicationName: "FinTrak",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
