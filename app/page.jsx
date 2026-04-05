@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { LifeBuoy } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import SummaryCards from "./components/SummaryCards";
@@ -10,6 +11,8 @@ import ExpenseChart from "./components/ExpenseChart";
 import { useTransactions } from "./context/TransactionContext";
 import BankSummary from "./components/BankSummary";
 import CategoryChart from "./components/CategoryChart";
+
+const SUPPORT_EMAIL = "support@fintrak.online";
 
 export default function Home() {
   const { token, login } = useAuth();
@@ -48,6 +51,14 @@ export default function Home() {
           >
             Connect Gmail Account
           </button>
+
+          <a
+            href={`mailto:${SUPPORT_EMAIL}`}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 py-3 font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          >
+            <LifeBuoy size={18} />
+            Contact Support
+          </a>
 
           <p className="text-xs text-slate-400 mt-6">
             Data sync is enabled across your devices.
