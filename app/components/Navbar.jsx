@@ -1,9 +1,7 @@
 "use client";
-import { LifeBuoy, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import ThemeToggle from "./ThemeToggle";
-
-const SUPPORT_EMAIL = "support@fintrak.online";
 
 export default function Navbar({ onOpenMenu }) {
   return (
@@ -22,16 +20,7 @@ export default function Navbar({ onOpenMenu }) {
         </h2>
       </div>
 
-      <div className="flex items-center gap-2">
-        <a
-          href={`mailto:${SUPPORT_EMAIL}`}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-        >
-          <LifeBuoy size={16} />
-          <span className="hidden sm:inline">Support</span>
-        </a>
-        <ThemeToggle />
-      </div>
+      <ThemeToggle />
     </div>
   );
 }
