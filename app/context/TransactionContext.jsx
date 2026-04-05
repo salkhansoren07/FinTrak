@@ -137,7 +137,7 @@ export function TransactionProvider({ children }) {
           Object.keys(localOverrides).length > 0 &&
           Object.keys(cloudOverrides).length === 0
         ) {
-          saveCloudUserData(overrides).catch((error) => {
+          saveCloudUserData({ categoryOverrides: overrides }).catch((error) => {
             console.warn("Cloud sync write failed:", error);
           });
         }

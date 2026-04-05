@@ -6,7 +6,7 @@ import {
 import { readSessionFromRequest } from "../../lib/serverAuth";
 import {
   getFintrakUserById,
-  updateFintrakUserCategoryOverrides,
+  updateFintrakUserDataProfile,
 } from "../../lib/fintrakUsers";
 
 export async function GET(req) {
@@ -19,6 +19,7 @@ export async function GET(req) {
     if (!hasSupabaseAdminConfig()) {
       return NextResponse.json({
         categoryOverrides: {},
+        budgetTargets: {},
         userKey: user.id,
         cloudSyncAvailable: false,
       });
@@ -31,6 +32,7 @@ export async function GET(req) {
       console.error("Failed to read user profile from Supabase:", error);
       return NextResponse.json({
         categoryOverrides: {},
+        budgetTargets: {},
         userKey: user.id,
         cloudSyncAvailable: false,
       });
@@ -38,13 +40,19 @@ export async function GET(req) {
 
     return NextResponse.json({
       categoryOverrides: appUser?.categoryOverrides || {},
+      budgetTargets: appUser?.budgetTargets || {},
       userKey: user.id,
       cloudSyncAvailable: true,
     });
   } catch (error) {
     console.error("Failed to load user data:", error);
     return NextResponse.json(
-      { categoryOverrides: {}, userKey: null, cloudSyncAvailable: false },
+      {
+        categoryOverrides: {},
+        budgetTargets: {},
+        userKey: null,
+        cloudSyncAvailable: false,
+      },
       { status: 200 }
     );
   }
@@ -61,18 +69,31 @@ export async function PUT(req) {
     const categoryOverrides =
       body?.categoryOverrides && typeof body.categoryOverrides === "object"
         ? body.categoryOverrides
-        : {};
+        : null;
+    const budgetTargets =
+      body?.budgetTargets && typeof body.budgetTargets === "object"
+        ? body.budgetTargets
+        : null;
 
     if (!hasSupabaseAdminConfig()) {
       return NextResponse.json({ ok: true, cloudSyncAvailable: false });
     }
 
     const supabase = getSupabaseAdmin();
-    const { error } = await updateFintrakUserCategoryOverrides(
+    const { user: currentUser, error: currentUserError } = await getFintrakUserById(
       supabase,
-      user.id,
-      categoryOverrides
+      user.id
     );
+
+    if (currentUserError || !currentUser) {
+      console.error("Failed to load user profile before save:", currentUserError);
+      return NextResponse.json({ ok: true, cloudSyncAvailable: false });
+    }
+
+    const { error } = await updateFintrakUserDataProfile(supabase, user.id, {
+      categoryOverrides: categoryOverrides ?? currentUser.categoryOverrides,
+      budgetTargets: budgetTargets ?? currentUser.budgetTargets,
+    });
 
     if (error) {
       console.error("Failed to save user profile to Supabase:", error);

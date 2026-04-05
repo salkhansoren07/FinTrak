@@ -1,4 +1,8 @@
 import crypto from "node:crypto";
+import {
+  encodeUserDataProfile,
+  normalizeStoredUserDataProfile,
+} from "./userDataProfile.mjs";
 
 const TABLE_NAME = "fintrak_users";
 
@@ -14,6 +18,7 @@ function mapUser(row) {
   if (!row) return null;
 
   return {
+    ...normalizeStoredUserDataProfile(row.category_overrides),
     id: row.id,
     username: row.username,
     email: row.email || null,
@@ -22,10 +27,6 @@ function mapUser(row) {
     gmailRefreshToken: row.gmail_refresh_token || null,
     gmailEmail: row.gmail_email || null,
     gmailSubject: row.gmail_subject || null,
-    categoryOverrides:
-      row.category_overrides && typeof row.category_overrides === "object"
-        ? row.category_overrides
-        : {},
   };
 }
 
@@ -82,7 +83,7 @@ export async function createFintrakUser(
       username: normalizedUsername,
       email: normalizedEmail || null,
       password_hash: passwordHash,
-      category_overrides: {},
+      category_overrides: encodeUserDataProfile(),
     })
     .select("id, username, email, gmail_refresh_token, passcode_hash")
     .single();
@@ -184,7 +185,27 @@ export async function updateFintrakUserCategoryOverrides(
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .update({
-      category_overrides: categoryOverrides,
+      category_overrides: encodeUserDataProfile({ categoryOverrides }),
+    })
+    .eq("id", userId)
+    .select("id, category_overrides")
+    .single();
+
+  return { data, error };
+}
+
+export async function updateFintrakUserDataProfile(
+  supabase,
+  userId,
+  { categoryOverrides, budgetTargets }
+) {
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .update({
+      category_overrides: encodeUserDataProfile({
+        categoryOverrides,
+        budgetTargets,
+      }),
     })
     .eq("id", userId)
     .select("id, category_overrides")

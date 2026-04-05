@@ -5,8 +5,7 @@ import {
   writeCategoryOverrides,
 } from "../lib/categoryOverridesStorage.mjs";
 import { useAuth } from "../context/AuthContext";
-
-const CATEGORIES = ["Food", "Shopping", "Transfer", "Bills", "Other"];
+import { DEFAULT_CATEGORIES } from "../lib/categoryConfig.mjs";
 
 export default function TransactionTable({ transactions = [] }) {
   const { user } = useAuth();
@@ -18,8 +17,8 @@ export default function TransactionTable({ transactions = [] }) {
 
     writeCategoryOverrides(user?.id, existing);
 
-    try {
-      await saveCloudUserData(existing);
+      try {
+      await saveCloudUserData({ categoryOverrides: existing });
     } catch (error) {
       console.warn("Cloud sync write failed:", error);
     }
@@ -54,7 +53,7 @@ export default function TransactionTable({ transactions = [] }) {
                 onChange={(e) => updateCategory(t.id, e.target.value)}
                 className="bg-transparent border rounded-lg px-2 py-1 text-sm text-slate-600 dark:text-slate-300 max-w-[50%]"
               >
-                {CATEGORIES.map((c) => (
+                {DEFAULT_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -92,7 +91,7 @@ export default function TransactionTable({ transactions = [] }) {
                     onChange={(e) => updateCategory(t.id, e.target.value)}
                     className="bg-transparent border rounded-lg px-2 py-1 text-slate-300"
                   >
-                    {CATEGORIES.map((c) => (
+                    {DEFAULT_CATEGORIES.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>

@@ -14,6 +14,10 @@ import {
   isPasscodeLocked,
   registerFailedPasscodeAttempt,
 } from "../app/lib/passcodeSecurity.mjs";
+import {
+  encodeUserDataProfile,
+  normalizeStoredUserDataProfile,
+} from "../app/lib/userDataProfile.mjs";
 
 function createStorage() {
   const values = new Map();
@@ -88,4 +92,16 @@ test("legacy shared category overrides are ignored", () => {
   storage.setItem("categoryOverrides", JSON.stringify({ txn0: "Transfer" }));
 
   assert.deepEqual(readCategoryOverrides("user-c", storage), {});
+});
+
+test("user data profile preserves budgets and category overrides", () => {
+  const encoded = encodeUserDataProfile({
+    categoryOverrides: { txn1: "Food" },
+    budgetTargets: { Food: 5000, Bills: 2500 },
+  });
+
+  assert.deepEqual(normalizeStoredUserDataProfile(encoded), {
+    categoryOverrides: { txn1: "Food" },
+    budgetTargets: { Food: 5000, Bills: 2500 },
+  });
 });

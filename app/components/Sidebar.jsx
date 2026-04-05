@@ -5,6 +5,7 @@ import {
   LogOut,
   Calendar,
   ListRestart,
+  PiggyBank,
   UserRound,
 } from "lucide-react";
 
@@ -137,6 +138,15 @@ export default function Sidebar({ onClose }) {
           >
             <BookUser size={18} />
             Individual
+          </Link>
+
+          <Link
+            href="/budget"
+            onClick={onClose}
+            className={navItemClasses}
+          >
+            <PiggyBank size={18} />
+            Budget Tracking
           </Link>
 
           <Link
