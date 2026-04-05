@@ -14,7 +14,7 @@ function readCategoryOverrides() {
   }
 }
 
-export default function TransactionTable({ transactions = [], token = null }) {
+export default function TransactionTable({ transactions = [] }) {
   const updateCategory = async (id, category) => {
     const existing = readCategoryOverrides();
 
@@ -25,12 +25,10 @@ export default function TransactionTable({ transactions = [], token = null }) {
       JSON.stringify(existing)
     );
 
-    if (token) {
-      try {
-        await saveCloudUserData(token, existing);
-      } catch (error) {
-        console.warn("Cloud sync write failed:", error);
-      }
+    try {
+      await saveCloudUserData(existing);
+    } catch (error) {
+      console.warn("Cloud sync write failed:", error);
     }
 
     window.location.reload();

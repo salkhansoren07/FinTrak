@@ -74,7 +74,7 @@ function isQuotaError(message) {
 }
 
 export function TransactionProvider({ children }) {
-  const { token, clearSession } = useAuth();
+  const { authenticated, hasPasscode, user } = useAuth();
   const pathname = usePathname();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -89,7 +89,7 @@ export function TransactionProvider({ children }) {
   });
 
   useEffect(() => {
-    if (!token) {
+    if (!authenticated) {
       setTransactions([]);
       setLoading(false);
       setSyncError("");
@@ -97,7 +97,7 @@ export function TransactionProvider({ children }) {
       return;
     }
 
-    const { isUnlocked } = readClientSession();
+    const { isUnlocked } = readClientSession(user?.id, hasPasscode);
 
     if (!isUnlocked || isSessionSetupRoute(pathname)) {
       setTransactions([]);
@@ -121,7 +121,7 @@ export function TransactionProvider({ children }) {
         let userKey = "default";
 
         try {
-          const cloudData = await fetchCloudUserData(token);
+          const cloudData = await fetchCloudUserData();
           if (
             cloudData?.categoryOverrides &&
             typeof cloudData.categoryOverrides === "object"
@@ -142,7 +142,7 @@ export function TransactionProvider({ children }) {
           Object.keys(localOverrides).length > 0 &&
           Object.keys(cloudOverrides).length === 0
         ) {
-          saveCloudUserData(token, overrides).catch((error) => {
+          saveCloudUserData(overrides).catch((error) => {
             console.warn("Cloud sync write failed:", error);
           });
         }
@@ -164,7 +164,7 @@ export function TransactionProvider({ children }) {
           return;
         }
 
-        const gmailData = await fetchGmailTransactions(token);
+        const gmailData = await fetchGmailTransactions();
         const parsed = applyOverrides(gmailData?.transactions || [], overrides);
 
         if (cancelled) return;
@@ -197,10 +197,8 @@ export function TransactionProvider({ children }) {
           message.includes("403")
         ) {
           console.warn("Gmail auth error:", message);
-          clearSession();
-          setTransactions([]);
           setSyncError(
-            "Gmail access expired or is missing permission. Please reconnect and allow Gmail read access."
+            "Your Gmail connection expired or was revoked. Please reconnect Gmail to resume syncing."
           );
           return;
         }
@@ -219,7 +217,7 @@ export function TransactionProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [clearSession, pathname, token]);
+  }, [authenticated, hasPasscode, pathname, user?.id]);
 
   const filteredTransactions = useMemo(() => {
     if (!transactions.length) return [];

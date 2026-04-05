@@ -1,8 +1,6 @@
-export async function fetchCloudUserData(token) {
-  if (!token) return null;
-
+export async function fetchCloudUserData() {
   const res = await fetch("/api/user-data", {
-    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
   });
 
   if (!res.ok) return null;
@@ -10,14 +8,11 @@ export async function fetchCloudUserData(token) {
   return res.json();
 }
 
-export async function saveCloudUserData(token, categoryOverrides) {
-  if (!token) return false;
-
+export async function saveCloudUserData(categoryOverrides) {
   const res = await fetch("/api/user-data", {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ categoryOverrides }),
   });

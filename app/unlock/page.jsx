@@ -1,46 +1,61 @@
 "use client";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import {
+  clearPinVerification,
+  setPinVerified,
+} from "../lib/clientSession";
 
 export default function Unlock() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const verify = async () => {
-    const saved = localStorage.getItem("user_pin");
+    if (!user?.id) {
+      router.replace("/");
+      return;
+    }
 
-    const hash = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(pin)
-    );
+    startTransition(async () => {
+      const res = await fetch("/api/passcode/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ passcode: pin }),
+      });
 
-    const hex = Array.from(new Uint8Array(hash))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join("");
+      if (res.ok) {
+        setPinVerified(user.id, true);
+        router.push("/");
+        return;
+      }
 
-    if (hex === saved) {
-      sessionStorage.setItem("pin_verified", "true");
-      router.push("/");
-    } else {
       setError(true);
       setPin("");
       setTimeout(() => setError(false), 400);
-    }
+    });
   };
 
   const resetPin = () => {
-    if (!confirm("Reset PIN? Gmail login will be required again.")) return;
+    if (!confirm("Reset PIN? FinTrak sign-in will be required again.")) return;
 
-    localStorage.removeItem("user_pin");
-    sessionStorage.clear();
+    startTransition(async () => {
+      if (user?.id) {
+        await fetch("/api/passcode", {
+          method: "DELETE",
+        }).catch(() => null);
+        clearPinVerification(user.id);
+      }
 
-    logout(); // revoke gmail token
-
-    router.replace("/");
+      await logout();
+      router.replace("/");
+    });
   };
 
   return (
@@ -85,15 +100,16 @@ export default function Unlock() {
         />
 
         <button
-          disabled={pin.length !== 6}
+          disabled={pin.length !== 6 || isPending}
           onClick={verify}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-3 rounded-xl font-semibold shadow-lg active:scale-95 transition"
         >
-          Unlock
+          {isPending ? "Checking..." : "Unlock"}
         </button>
 
         {/* FORGOT PIN */}
         <button
+          disabled={isPending}
           onClick={resetPin}
           className="mt-4 text-sm text-slate-400 hover:text-red-500 transition"
         >
@@ -101,7 +117,7 @@ export default function Unlock() {
         </button>
 
         <p className="text-xs text-slate-400 mt-4">
-          Secured locally 🔐
+          Protected by your FinTrak account
         </p>
       </div>
 

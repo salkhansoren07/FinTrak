@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   BarChart3,
@@ -26,6 +27,7 @@ import ExpenseChart from "./components/ExpenseChart";
 import { useTransactions } from "./context/TransactionContext";
 import BankSummary from "./components/BankSummary";
 import CategoryChart from "./components/CategoryChart";
+import PublicAuthCard from "./components/PublicAuthCard";
 
 const SUPPORT_EMAIL = "support@fintrak.online";
 
@@ -79,14 +81,42 @@ const FAQS = [
   },
 ];
 
+const AUTH_ERROR_MESSAGES = {
+  oauth_state_invalid:
+    "The Google sign-in session expired before it finished. Please try connecting Gmail again.",
+  oauth_callback_failed:
+    "FinTrak could not finish Google sign-in. Please try again.",
+  refresh_token_missing:
+    "Google did not return a reusable Gmail connection. Remove FinTrak from your Google account permissions, then connect Gmail again.",
+  profile_read_failed:
+    "FinTrak could not read your saved Gmail connection. Please try again.",
+  profile_write_failed:
+    "FinTrak could not save your Gmail connection. Make sure the FinTrak users table has the Gmail token fields, then try again.",
+  supabase_not_configured:
+    "Server-side Gmail sync is not configured yet. Add the required Supabase and Google server credentials.",
+  login_required:
+    "Create or sign in to your FinTrak account before connecting Gmail.",
+};
+
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { token, login } = useAuth();
+  const searchParams = useSearchParams();
+  const { authenticated, connectGmail, loading: authLoading } = useAuth();
   const { filteredTransactions, loading, syncError, syncWarning } =
     useTransactions();
+  const authErrorMessage =
+    AUTH_ERROR_MESSAGES[searchParams.get("authError")] || "";
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-6 text-center text-slate-600 dark:bg-[#020617] dark:text-slate-300">
+        FinTrak is warming up...
+      </div>
+    );
+  }
 
   // NOT LOGGED IN
-  if (!token) {
+  if (!authenticated) {
     return (
       <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_38%),linear-gradient(180deg,_#f8fbff_0%,_#edf4ff_48%,_#f8fafc_100%)] text-slate-900 dark:bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(180deg,_#020617_0%,_#081225_48%,_#020617_100%)] dark:text-slate-50">
         <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
@@ -164,12 +194,13 @@ export default function Home() {
                   <LifeBuoy size={16} />
                   Support
                 </a>
-                <button
-                  onClick={login}
+                <a
+                  href="#auth"
+                  onClick={() => setMobileMenuOpen(false)}
                   className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700 sm:col-span-1"
                 >
-                  Connect Gmail
-                </button>
+                  Create Account
+                </a>
               </nav>
             </div>
           </header>
@@ -177,6 +208,12 @@ export default function Home() {
           <main className="flex-1 py-7 sm:py-10 lg:py-14">
             <section className="grid items-center gap-6 sm:gap-8 lg:grid-cols-[1.15fr,0.85fr]">
               <div>
+                {authErrorMessage ? (
+                  <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+                    {authErrorMessage}
+                  </div>
+                ) : null}
+
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200/70 bg-white/80 px-4 py-2 text-xs font-medium text-blue-700 shadow-sm sm:text-sm dark:border-blue-900/60 dark:bg-slate-900/70 dark:text-blue-300">
                   <Sparkles size={16} />
                   Designed for effortless expense visibility
@@ -192,18 +229,19 @@ export default function Home() {
 
                 <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:mt-6 sm:text-lg sm:leading-8 dark:text-slate-300">
                   FinTrak detects transaction-related emails from banks and
-                  payment apps, then turns them into clean summaries, charts,
-                  and categorized spending insights for the user.
+                  payment apps after a one-time Gmail connection, then turns
+                  them into clean summaries, charts, and categorized spending
+                  insights for the user.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    onClick={login}
+                  <a
+                    href="#auth"
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-4 text-base font-semibold text-white shadow-xl transition hover:bg-blue-700"
                   >
-                    Connect Gmail
+                    Create Account
                     <ArrowRight size={18} />
-                  </button>
+                  </a>
                   <a
                     href={`mailto:${SUPPORT_EMAIL}`}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-6 py-4 text-base font-semibold text-slate-700 transition hover:bg-white dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:bg-slate-900"
@@ -220,7 +258,7 @@ export default function Home() {
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-emerald-500" />
-                    No email sending, deleting, or editing
+                    FinTrak login plus one-time Gmail connect
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <Building2 size={16} className="text-emerald-500" />
@@ -229,102 +267,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="glass-card overflow-hidden rounded-[1.75rem] border border-white/30 shadow-2xl sm:rounded-3xl">
-                <div className="border-b border-slate-200/70 bg-white/80 px-5 py-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900/80">
-                  <div className="flex items-center gap-3">
-                    <Image
-                      src="/fintrak-logo.png"
-                      alt="FinTrak logo"
-                      width={44}
-                      height={44}
-                      className="h-11 w-11 rounded-xl shadow-md"
-                    />
-                    <div>
-                      <p className="font-semibold text-slate-900 dark:text-white">
-                        FinTrak Dashboard Preview
-                      </p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Inbox data transformed into expense insights
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4 p-5 sm:space-y-5 sm:p-6">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 p-5 text-white shadow-lg">
-                      <p className="text-sm uppercase tracking-wide text-white/80">
-                        Total Expenses
-                      </p>
-                      <p className="mt-3 text-2xl font-bold sm:text-3xl">
-                        ₹ 18,450
-                      </p>
-                      <p className="mt-2 text-sm text-white/80">
-                        Auto-detected from transaction emails
-                      </p>
-                    </div>
-                    <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-5 text-white shadow-lg">
-                      <p className="text-sm uppercase tracking-wide text-white/80">
-                        Total Income
-                      </p>
-                      <p className="mt-3 text-2xl font-bold sm:text-3xl">
-                        ₹ 55,000
-                      </p>
-                      <p className="mt-2 text-sm text-white/80">
-                        Salary and incoming transactions
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                        Category insights
-                      </p>
-                      <div className="mt-4 space-y-3">
-                        {[
-                          ["Food", "₹ 4,860", "w-[76%] bg-amber-500"],
-                          ["Shopping", "₹ 6,200", "w-[92%] bg-blue-500"],
-                          ["Bills", "₹ 2,120", "w-[42%] bg-rose-500"],
-                        ].map(([label, value, bar]) => (
-                          <div key={label}>
-                            <div className="mb-1 flex items-center justify-between text-sm">
-                              <span className="text-slate-600 dark:text-slate-300">
-                                {label}
-                              </span>
-                              <span className="font-semibold text-slate-900 dark:text-white">
-                                {value}
-                              </span>
-                            </div>
-                            <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
-                              <div
-                                className={`h-2 rounded-full ${bar}`}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                        Why users trust it
-                      </p>
-                      <div className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                        <p className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
-                          Gmail access is read-only
-                        </p>
-                        <p className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
-                          Privacy policy and terms are public
-                        </p>
-                        <p className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
-                          Support available at support@fintrak.online
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <PublicAuthCard />
             </section>
 
             <section className="mt-12 grid gap-4 sm:mt-16 sm:gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -464,7 +407,7 @@ export default function Home() {
                       Email Support
                     </a>
                     <button
-                      onClick={login}
+                      onClick={() => connectGmail({ forceConsent: true })}
                       className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/25 px-5 py-3 font-semibold text-white transition hover:bg-white/10"
                     >
                       Connect Gmail
@@ -518,7 +461,7 @@ export default function Home() {
         <div className="text-center py-24 space-y-4">
           <p className="text-rose-500">{syncError}</p>
           <button
-            onClick={login}
+            onClick={() => connectGmail({ forceConsent: true })}
             className="bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-semibold shadow-lg transition-all active:scale-95"
           >
             Reconnect Gmail
@@ -540,10 +483,7 @@ export default function Home() {
           </div>
 
           <section id="transactions" className="scroll-mt-6">
-            <TransactionTable
-              transactions={filteredTransactions}
-              token={token}
-            />
+            <TransactionTable transactions={filteredTransactions} />
           </section>
         </>
       ) : (

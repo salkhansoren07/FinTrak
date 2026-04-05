@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { useTransactions } from "../context/TransactionContext";
 import {
+  clearAllPinVerifications,
   getSessionRedirect,
   isProtectedAppRoute,
   isSessionSetupRoute,
@@ -22,7 +23,7 @@ function FullScreenMessage({ children }) {
 }
 
 export default function AppShell({ children }) {
-  const { token } = useAuth();
+  const { authenticated, hasPasscode, loading: authLoading, user } = useAuth();
   const { loading, transactions } = useTransactions();
   const pathname = usePathname();
   const router = useRouter();
@@ -32,7 +33,10 @@ export default function AppShell({ children }) {
     () => true,
     () => false
   );
-  const redirectTarget = isMounted ? getSessionRedirect(pathname, token) : null;
+  const redirectTarget =
+    isMounted && !authLoading
+      ? getSessionRedirect(pathname, authenticated, user?.id, hasPasscode)
+      : null;
 
   useEffect(() => {
     if (!redirectTarget || redirectTarget === pathname) return;
@@ -40,9 +44,9 @@ export default function AppShell({ children }) {
   }, [pathname, redirectTarget, router]);
 
   useEffect(() => {
-    if (!isMounted || !token) return;
+    if (!isMounted || !authenticated) return;
 
-    const { hasPin, isVerified } = readClientSession();
+    const { hasPin, isVerified } = readClientSession(user?.id, hasPasscode);
 
     if (!hasPin || !isVerified || isSessionSetupRoute(pathname)) {
       clearTimeout(idleTimer.current);
@@ -54,6 +58,7 @@ export default function AppShell({ children }) {
 
       idleTimer.current = setTimeout(() => {
         sessionStorage.removeItem("pin_verified");
+        clearAllPinVerifications();
         router.replace("/unlock");
       }, IDLE_TIME_MS);
     };
@@ -69,15 +74,17 @@ export default function AppShell({ children }) {
       );
       clearTimeout(idleTimer.current);
     };
-  }, [isMounted, pathname, router, token]);
+  }, [authenticated, hasPasscode, isMounted, pathname, router, user?.id]);
 
-  if (!isMounted || (redirectTarget && redirectTarget !== pathname)) {
+  if (!isMounted || authLoading || (redirectTarget && redirectTarget !== pathname)) {
     return <FullScreenMessage>FinTrak is warming up...</FullScreenMessage>;
   }
 
-  const { isUnlocked } = token ? readClientSession() : { isUnlocked: true };
+  const { isUnlocked } = authenticated
+    ? readClientSession(user?.id, hasPasscode)
+    : { isUnlocked: true };
   const showDataLoader =
-    token &&
+    authenticated &&
     isUnlocked &&
     isProtectedAppRoute(pathname) &&
     loading &&

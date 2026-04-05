@@ -23,8 +23,13 @@ export default function PrivacyPage() {
       <h2>Information FinTrak processes</h2>
       <p>Depending on how the app is used, FinTrak may process:</p>
       <ul>
-        <li>basic Google account profile information needed for sign-in</li>
-        <li>an OAuth access token used to request Gmail data on the user&apos;s behalf</li>
+        <li>FinTrak account details such as username, email address, and password hash</li>
+        <li>a hashed FinTrak passcode when the user enables the in-app lock screen</li>
+        <li>basic Google account profile information needed to connect Gmail</li>
+        <li>
+          secure server-side Gmail connection tokens used to refresh access on
+          the user&apos;s behalf after consent is granted
+        </li>
         <li>
           Gmail messages and metadata that appear to contain transaction,
           debit, credit, bank, or UPI payment information
@@ -39,7 +44,7 @@ export default function PrivacyPage() {
       <h2>How the information is used</h2>
       <p>FinTrak uses this information to:</p>
       <ul>
-        <li>authenticate the user and maintain an active session</li>
+        <li>authenticate FinTrak users and maintain an active app session</li>
         <li>retrieve transaction-related Gmail messages requested by the user</li>
         <li>parse those messages into structured transaction records</li>
         <li>display dashboards, charts, summaries, bank views, and payee views</li>
@@ -62,10 +67,11 @@ export default function PrivacyPage() {
 
       <h2>Storage and retention</h2>
       <p>
-        Parsed transaction data, local preferences, and short-lived cache data
-        may be stored in the browser or on backend services used by the app. If
-        cloud sync is enabled, category overrides or related user settings may
-        also be stored on the configured backend.
+        Parsed transaction data, local preferences, short-lived cache data, and
+        Gmail connection information may be stored in the browser or on backend
+        services used by the app. If cloud sync is enabled, category overrides
+        and related Google connection data may also be stored on the configured
+        backend.
       </p>
       <p>
         Data is retained only for as long as needed to operate the service,

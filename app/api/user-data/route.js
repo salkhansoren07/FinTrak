@@ -3,70 +3,15 @@ import {
   getSupabaseAdmin,
   hasSupabaseAdminConfig,
 } from "../../lib/supabaseAdmin";
-import { getUserFromAccessToken } from "../../lib/googleIdentity";
-
-function isMissingColumn(error, columnName) {
-  return (
-    error?.code === "42703" &&
-    typeof error?.message === "string" &&
-    error.message.includes(columnName)
-  );
-}
-
-async function readUserProfile(supabase, user) {
-  const primaryResult = await supabase
-    .from("user_profiles")
-    .select("category_overrides")
-    .eq("user_sub", user.sub)
-    .maybeSingle();
-
-  if (!isMissingColumn(primaryResult.error, "user_profiles.user_sub")) {
-    return primaryResult;
-  }
-
-  return supabase
-    .from("user_profiles")
-    .select("category_overrides")
-    .eq("user_id", user.sub)
-    .maybeSingle();
-}
-
-async function upsertUserProfile(supabase, user, categoryOverrides) {
-  const primaryResult = await supabase.from("user_profiles").upsert(
-    {
-      user_sub: user.sub,
-      email: user.email || null,
-      category_overrides: categoryOverrides,
-    },
-    { onConflict: "user_sub" }
-  );
-
-  if (!isMissingColumn(primaryResult.error, "user_profiles.user_sub")) {
-    return primaryResult;
-  }
-
-  return supabase.from("user_profiles").upsert(
-    {
-      user_id: user.sub,
-      email: user.email || null,
-      category_overrides: categoryOverrides,
-    },
-    { onConflict: "user_id" }
-  );
-}
-
-async function getUserFromRequest(req) {
-  const auth = req.headers.get("authorization") || "";
-  const accessToken = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-
-  if (!accessToken) return null;
-
-  return getUserFromAccessToken(accessToken);
-}
+import { readSessionFromRequest } from "../../lib/serverAuth";
+import {
+  getFintrakUserById,
+  updateFintrakUserCategoryOverrides,
+} from "../../lib/fintrakUsers";
 
 export async function GET(req) {
   try {
-    const user = await getUserFromRequest(req);
+    const user = readSessionFromRequest(req);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -74,27 +19,26 @@ export async function GET(req) {
     if (!hasSupabaseAdminConfig()) {
       return NextResponse.json({
         categoryOverrides: {},
-        userKey: user.sub,
+        userKey: user.id,
         cloudSyncAvailable: false,
       });
     }
 
     const supabase = getSupabaseAdmin();
-
-    const { data, error } = await readUserProfile(supabase, user);
+    const { user: appUser, error } = await getFintrakUserById(supabase, user.id);
 
     if (error) {
       console.error("Failed to read user profile from Supabase:", error);
       return NextResponse.json({
         categoryOverrides: {},
-        userKey: user.sub,
+        userKey: user.id,
         cloudSyncAvailable: false,
       });
     }
 
     return NextResponse.json({
-      categoryOverrides: data?.category_overrides || {},
-      userKey: user.sub,
+      categoryOverrides: appUser?.categoryOverrides || {},
+      userKey: user.id,
       cloudSyncAvailable: true,
     });
   } catch (error) {
@@ -108,7 +52,7 @@ export async function GET(req) {
 
 export async function PUT(req) {
   try {
-    const user = await getUserFromRequest(req);
+    const user = readSessionFromRequest(req);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -124,10 +68,9 @@ export async function PUT(req) {
     }
 
     const supabase = getSupabaseAdmin();
-
-    const { error } = await upsertUserProfile(
+    const { error } = await updateFintrakUserCategoryOverrides(
       supabase,
-      user,
+      user.id,
       categoryOverrides
     );
 

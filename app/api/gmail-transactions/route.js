@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { parseTransaction } from "../../lib/parseTransaction";
-import { getUserFromAccessToken } from "../../lib/googleIdentity";
+import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../lib/supabaseAdmin";
+import { readSessionFromRequest } from "../../lib/serverAuth";
+import { getServerGmailAccessToken } from "../../lib/googleSession";
 
 const QUERY =
   '(debited OR credited OR transaction OR txn OR upi OR utr OR withdrawn OR deposited OR "available bal" OR "a/c")';
@@ -10,11 +12,6 @@ const DETAIL_CONCURRENCY = 8;
 const SERVER_CACHE_TTL_MS = 2 * 60 * 1000;
 
 const transactionCache = new Map();
-
-function getAccessToken(req) {
-  const auth = req.headers.get("authorization") || "";
-  return auth.startsWith("Bearer ") ? auth.slice(7) : "";
-}
 
 function getCachedTransactions(userKey) {
   const entry = transactionCache.get(userKey);
@@ -121,18 +118,30 @@ async function mapWithConcurrency(items, concurrency, mapper) {
 
 export async function GET(req) {
   try {
-    const accessToken = getAccessToken(req);
-    const user = await getUserFromAccessToken(accessToken);
+    const user = readSessionFromRequest(req);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const cached = getCachedTransactions(user.sub);
+    if (!hasSupabaseAdminConfig()) {
+      return NextResponse.json(
+        {
+          error:
+            "Server-side Gmail sync is not configured. Add Supabase and Google OAuth server credentials.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const supabase = getSupabaseAdmin();
+    const accessToken = await getServerGmailAccessToken(supabase, user);
+
+    const cached = getCachedTransactions(user.id);
     if (cached) {
       return NextResponse.json({
         transactions: cached.transactions,
-        userKey: user.sub,
+        userKey: user.id,
         cached: true,
         meta: cached.meta,
       });
@@ -164,14 +173,14 @@ export async function GET(req) {
       detailFailures: details.filter((entry) => entry?.error).length,
     };
 
-    setCachedTransactions(user.sub, {
+    setCachedTransactions(user.id, {
       transactions,
       meta,
     });
 
     return NextResponse.json({
       transactions,
-      userKey: user.sub,
+      userKey: user.id,
       cached: false,
       meta,
     });

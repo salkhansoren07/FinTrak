@@ -1,8 +1,5 @@
-export async function fetchGmailTransactions(token) {
-  if (!token) return null;
-
+export async function fetchGmailTransactions() {
   const res = await fetch("/api/gmail-transactions", {
-    headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
 

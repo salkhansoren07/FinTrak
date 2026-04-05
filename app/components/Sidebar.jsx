@@ -4,7 +4,8 @@ import {
   CreditCard,
   LogOut,
   Calendar,
-  ListRestart
+  ListRestart,
+  UserRound,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -136,6 +137,15 @@ export default function Sidebar({ onClose }) {
           >
             <BookUser size={18} />
             Individual
+          </Link>
+
+          <Link
+            href="/profile"
+            onClick={onClose}
+            className={navItemClasses}
+          >
+            <UserRound size={18} />
+            Profile
           </Link>
 
 

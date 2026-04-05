@@ -1,52 +1,132 @@
-// app/context/AuthContext.jsx
 "use client";
-import { createContext, useContext, useState, useCallback } from "react";
+
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { clearAllPinVerifications } from "../lib/clientSession";
 
 const AuthContext = createContext();
 
-export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("gmail_token");
+async function fetchSession() {
+  const res = await fetch("/api/auth/session", { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Failed to load auth session");
+  }
+  return res.json();
+}
+
+async function postJson(url, body) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
 
-  const clearSession = useCallback(() => {
-    setToken(null);
-    localStorage.removeItem("gmail_token");
-    sessionStorage.removeItem("pin_verified");
-  }, []);
+  const payload = await res.json().catch(() => ({}));
 
-  const login = useCallback(() => {
-    if (!window.google) return;
-    const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-      scope:
-        "https://www.googleapis.com/auth/gmail.readonly openid email profile",
-      ux_mode: "popup",
-      callback: (res) => {
-        if (res?.error) {
-          console.error("Google OAuth error:", res);
-          return;
-        }
+  if (!res.ok) {
+    throw new Error(payload?.error || "Authentication request failed");
+  }
 
-        if (res?.access_token) {
-          setToken(res.access_token);
-          localStorage.setItem("gmail_token", res.access_token); // Save session
-        }
-      },
-    });
-    client.requestAccessToken({ prompt: "consent" });
-  }, []);
+  return payload;
+}
 
-  const logout = useCallback(() => {
-    if (token && window.google?.accounts?.oauth2) {
-      window.google.accounts.oauth2.revoke(token);
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [hasPasscode, setHasPasscode] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      const data = await fetchSession();
+      setUser(data?.authenticated ? data.user : null);
+      setGmailConnected(Boolean(data?.gmailConnected));
+      setHasPasscode(Boolean(data?.hasPasscode));
+    } catch (error) {
+      console.error("Failed to refresh auth session:", error);
+      setUser(null);
+      setGmailConnected(false);
+      setHasPasscode(false);
+    } finally {
+      setLoading(false);
     }
-    clearSession();
-  }, [clearSession, token]);
+  }, []);
+
+  useEffect(() => {
+    refreshSession();
+  }, [refreshSession]);
+
+  const connectGmail = useCallback((options = {}) => {
+    const search = new URLSearchParams();
+    const shouldForceConsent = options.forceConsent ?? true;
+    if (shouldForceConsent) {
+      search.set("consent", "1");
+    }
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    window.location.assign(`/api/auth/google/start${suffix}`);
+  }, []);
+
+  const signup = useCallback(async ({ username, email, password }) => {
+    const payload = await postJson("/api/auth/signup", {
+      username,
+      email,
+      password,
+    });
+
+    setUser(payload.user || null);
+    setGmailConnected(Boolean(payload.gmailConnected));
+    setHasPasscode(Boolean(payload.hasPasscode));
+    return payload;
+  }, []);
+
+  const login = useCallback(async ({ identifier, password }) => {
+    const payload = await postJson("/api/auth/login", {
+      identifier,
+      password,
+    });
+
+    setUser(payload.user || null);
+    setGmailConnected(Boolean(payload.gmailConnected));
+    setHasPasscode(Boolean(payload.hasPasscode));
+    return payload;
+  }, []);
+
+  const clearSession = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch (error) {
+      console.error("Failed to clear auth session:", error);
+    } finally {
+      setUser(null);
+      setGmailConnected(false);
+      setHasPasscode(false);
+      clearAllPinVerifications();
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    await clearSession();
+  }, [clearSession]);
 
   return (
-    <AuthContext.Provider value={{ token, login, logout, clearSession }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        gmailConnected,
+        hasPasscode,
+        loading,
+        authenticated: Boolean(user),
+        login,
+        signup,
+        connectGmail,
+        logout,
+        clearSession,
+        refreshSession,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
