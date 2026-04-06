@@ -3,6 +3,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { TransactionProvider } from "./context/TransactionContext";
 import AppShell from "./components/AppShell";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata = {
   title: "FinTrak",
@@ -47,6 +48,7 @@ export default function RootLayout({ children }) {
           </TransactionProvider>
         </AuthProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
