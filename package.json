@@ -2,12 +2,13 @@
   "name": "tailwind",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --experimental-specifier-resolution=node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",

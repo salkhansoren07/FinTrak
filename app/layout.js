@@ -7,6 +7,10 @@ export const metadata = {
   title: "FinTrak",
   description: "Smart expense tracking from Gmail",
   applicationName: "FinTrak",
+  metadataBase: new URL("https://www.fintrak.online"),
+  alternates: {
+    canonical: "./",
+  },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.png",

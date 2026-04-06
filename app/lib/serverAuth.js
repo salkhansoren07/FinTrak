@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { deriveSecret } from "./serverSecrets";
+import { deriveSecret } from "./serverSecrets.js";
 
 const SESSION_COOKIE_NAME = "fintrak_session";
 const OAUTH_COOKIE_NAME = "fintrak_oauth";

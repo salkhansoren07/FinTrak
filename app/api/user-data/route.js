@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server.js";
 import {
   getSupabaseAdmin,
   hasSupabaseAdminConfig,
-} from "../../lib/supabaseAdmin";
-import { readSessionFromRequest } from "../../lib/serverAuth";
+} from "../../lib/supabaseAdmin.js";
+import { readSessionFromRequest } from "../../lib/serverAuth.js";
 import {
   getFintrakUserById,
   updateFintrakUserDataProfile,
-} from "../../lib/fintrakUsers";
+} from "../../lib/fintrakUsers.js";
 
 export async function GET(req) {
   try {

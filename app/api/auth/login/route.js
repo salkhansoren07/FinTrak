@@ -1,11 +1,14 @@
-import { NextResponse } from "next/server";
-import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../../lib/supabaseAdmin";
-import { applySessionCookie } from "../../../lib/serverAuth";
+import { NextResponse } from "next/server.js";
+import {
+  getSupabaseAdmin,
+  hasSupabaseAdminConfig,
+} from "../../../lib/supabaseAdmin.js";
+import { applySessionCookie } from "../../../lib/serverAuth.js";
 import {
   getFintrakUserByIdentifier,
   normalizeLoginIdentifier,
-} from "../../../lib/fintrakUsers";
-import { verifyPassword } from "../../../lib/passwords";
+} from "../../../lib/fintrakUsers.js";
+import { verifyPassword } from "../../../lib/passwords.js";
 import {
   buildLoginThrottleKey,
   clearDistributedLoginAttemptState,

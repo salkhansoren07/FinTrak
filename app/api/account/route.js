@@ -1,13 +1,19 @@
-import { NextResponse } from "next/server";
-import { clearSessionCookie, readSessionFromRequest } from "../../lib/serverAuth";
-import { revokeGoogleToken } from "../../lib/googleOAuth";
-import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../lib/supabaseAdmin";
+import { NextResponse } from "next/server.js";
+import {
+  clearSessionCookie,
+  readSessionFromRequest,
+} from "../../lib/serverAuth.js";
+import { revokeGoogleToken } from "../../lib/googleOAuth.js";
+import {
+  getSupabaseAdmin,
+  hasSupabaseAdminConfig,
+} from "../../lib/supabaseAdmin.js";
 import {
   deleteFintrakUserById,
   getFintrakUserById,
-} from "../../lib/fintrakUsers";
-import { verifyPassword } from "../../lib/passwords";
-import { decryptSecretValue } from "../../lib/serverSecrets";
+} from "../../lib/fintrakUsers.js";
+import { verifyPassword } from "../../lib/passwords.js";
+import { decryptSecretValue } from "../../lib/serverSecrets.js";
 
 function normalizeConfirmation(value) {
   return String(value || "").trim().toLowerCase();
