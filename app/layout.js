@@ -2,6 +2,7 @@ import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import { TransactionProvider } from "./context/TransactionContext";
 import AppShell from "./components/AppShell";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata = {
   title: "FinTrak",
@@ -45,7 +46,7 @@ export default function RootLayout({ children }) {
             <AppShell>{children}</AppShell>
           </TransactionProvider>
         </AuthProvider>
-
+        <Analytics />
       </body>
     </html>
   );
