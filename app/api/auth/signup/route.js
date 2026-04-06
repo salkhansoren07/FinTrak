@@ -7,17 +7,14 @@ import {
   isUsernameTaken,
 } from "../../../lib/fintrakUsers";
 import { hashPassword } from "../../../lib/passwords";
+import {
+  isValidEmail,
+  isValidUsername,
+  USERNAME_REQUIREMENTS_MESSAGE,
+} from "../../../lib/authValidation.mjs";
 
 function normalizeInput(value) {
   return String(value || "").trim();
-}
-
-function isValidUsername(username) {
-  return /^[a-zA-Z0-9._-]{3,24}$/.test(username);
-}
-
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 export async function POST(req) {
@@ -37,8 +34,7 @@ export async function POST(req) {
     if (!isValidUsername(username)) {
       return NextResponse.json(
         {
-          error:
-            "Username must be 3-24 characters and use only letters, numbers, dots, underscores, or hyphens.",
+          error: USERNAME_REQUIREMENTS_MESSAGE,
         },
         { status: 400 }
       );

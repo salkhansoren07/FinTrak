@@ -3,6 +3,11 @@ import { parseTransaction } from "../../lib/parseTransaction";
 import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../lib/supabaseAdmin";
 import { readSessionFromRequest } from "../../lib/serverAuth";
 import { getServerGmailAccessToken } from "../../lib/googleSession";
+import {
+  getSharedJson,
+  hasSharedRedisConfig,
+  setSharedJson,
+} from "../../lib/sharedRedis.mjs";
 
 const QUERY =
   '(debited OR credited OR transaction OR txn OR upi OR utr OR withdrawn OR deposited OR "available bal" OR "a/c")';
@@ -10,26 +15,78 @@ const PAGE_SIZE = 100;
 const MAX_MESSAGES = 200;
 const DETAIL_CONCURRENCY = 8;
 const SERVER_CACHE_TTL_MS = 2 * 60 * 1000;
+const MAX_TRANSACTION_CACHE_ENTRIES = 200;
 
 const transactionCache = new Map();
 
+function pruneExpiredTransactionCache(now = Date.now()) {
+  for (const [key, entry] of transactionCache.entries()) {
+    if (!entry?.savedAt || now - entry.savedAt > SERVER_CACHE_TTL_MS) {
+      transactionCache.delete(key);
+    }
+  }
+}
+
 function getCachedTransactions(userKey) {
+  pruneExpiredTransactionCache();
   const entry = transactionCache.get(userKey);
   if (!entry) return null;
-
-  if (Date.now() - entry.savedAt > SERVER_CACHE_TTL_MS) {
-    transactionCache.delete(userKey);
-    return null;
-  }
 
   return entry;
 }
 
 function setCachedTransactions(userKey, payload) {
+  pruneExpiredTransactionCache();
+  transactionCache.delete(userKey);
   transactionCache.set(userKey, {
     ...payload,
     savedAt: Date.now(),
   });
+
+  while (transactionCache.size > MAX_TRANSACTION_CACHE_ENTRIES) {
+    const oldestKey = transactionCache.keys().next().value;
+    if (!oldestKey) {
+      break;
+    }
+    transactionCache.delete(oldestKey);
+  }
+}
+
+function buildSharedTransactionCacheKey(userKey) {
+  return `gmail-cache:${userKey}`;
+}
+
+async function readTransactionCache(userKey) {
+  if (hasSharedRedisConfig()) {
+    try {
+      return await getSharedJson(buildSharedTransactionCacheKey(userKey));
+    } catch {
+      return getCachedTransactions(userKey);
+    }
+  }
+
+  return getCachedTransactions(userKey);
+}
+
+async function writeTransactionCache(userKey, payload) {
+  if (hasSharedRedisConfig()) {
+    try {
+      await setSharedJson(
+        buildSharedTransactionCacheKey(userKey),
+        {
+          ...payload,
+          savedAt: Date.now(),
+        },
+        SERVER_CACHE_TTL_MS / 1000
+      );
+      return;
+    } catch {
+      setCachedTransactions(userKey, payload);
+      return;
+    }
+  }
+
+  setCachedTransactions(userKey, payload);
 }
 
 async function listMessageIds(accessToken) {
@@ -137,7 +194,7 @@ export async function GET(req) {
     const supabase = getSupabaseAdmin();
     const accessToken = await getServerGmailAccessToken(supabase, user);
 
-    const cached = getCachedTransactions(user.id);
+    const cached = await readTransactionCache(user.id);
     if (cached) {
       return NextResponse.json({
         transactions: cached.transactions,
@@ -173,7 +230,7 @@ export async function GET(req) {
       detailFailures: details.filter((entry) => entry?.error).length,
     };
 
-    setCachedTransactions(user.id, {
+    await writeTransactionCache(user.id, {
       transactions,
       meta,
     });

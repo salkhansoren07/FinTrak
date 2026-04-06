@@ -6,6 +6,10 @@ import {
   writeCategoryOverrides,
 } from "../app/lib/categoryOverridesStorage.mjs";
 import {
+  isValidUsername,
+  USERNAME_REQUIREMENTS_MESSAGE,
+} from "../app/lib/authValidation.mjs";
+import {
   MAX_PASSCODE_FAILURES,
   PASSCODE_LOCKOUT_MS,
   PASSCODE_ATTEMPT_WINDOW_MS,
@@ -18,6 +22,17 @@ import {
   encodeUserDataProfile,
   normalizeStoredUserDataProfile,
 } from "../app/lib/userDataProfile.mjs";
+import {
+  LOGIN_ATTEMPT_WINDOW_MS,
+  MAX_LOGIN_FAILURES,
+  buildLoginThrottleKey,
+  clearTrackedLoginAttemptState,
+  createLoginLockedMessage,
+  isLoginLocked,
+  readTrackedLoginAttemptState,
+  resetTrackedLoginAttemptsForTests,
+  trackFailedLoginAttempt,
+} from "../app/lib/loginSecurity.mjs";
 
 function createStorage() {
   const values = new Map();
@@ -104,4 +119,41 @@ test("user data profile preserves budgets and category overrides", () => {
     categoryOverrides: { txn1: "Food" },
     budgetTargets: { Food: 5000, Bills: 2500 },
   });
+});
+
+test("username validation matches production signup requirements", () => {
+  assert.equal(isValidUsername("aarav_mehta"), true);
+  assert.equal(isValidUsername("Aarav Mehta"), false);
+  assert.match(USERNAME_REQUIREMENTS_MESSAGE, /3-24 characters/);
+});
+
+test("login attempts lock after repeated failures for one identifier and client", () => {
+  resetTrackedLoginAttemptsForTests();
+  const key = buildLoginThrottleKey("aarav_mehta", "203.0.113.5");
+  const now = 2_000_000;
+  let state = null;
+
+  for (let index = 0; index < MAX_LOGIN_FAILURES; index += 1) {
+    state = trackFailedLoginAttempt(key, now + index);
+  }
+
+  assert.equal(isLoginLocked(state, now + MAX_LOGIN_FAILURES), true);
+  assert.equal(
+    readTrackedLoginAttemptState(key, now + MAX_LOGIN_FAILURES)?.count,
+    MAX_LOGIN_FAILURES
+  );
+  assert.match(createLoginLockedMessage(state), /Too many login attempts/);
+
+  clearTrackedLoginAttemptState(key);
+  assert.equal(readTrackedLoginAttemptState(key), null);
+});
+
+test("login attempt tracking expires after the rolling window", () => {
+  resetTrackedLoginAttemptsForTests();
+  const key = buildLoginThrottleKey("aarav_mehta", "203.0.113.5");
+  const now = 3_000_000;
+
+  trackFailedLoginAttempt(key, now);
+
+  assert.equal(readTrackedLoginAttemptState(key, now + LOGIN_ATTEMPT_WINDOW_MS + 1), null);
 });

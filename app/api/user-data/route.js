@@ -76,7 +76,14 @@ export async function PUT(req) {
         : null;
 
     if (!hasSupabaseAdminConfig()) {
-      return NextResponse.json({ ok: true, cloudSyncAvailable: false });
+      return NextResponse.json(
+        {
+          ok: false,
+          cloudSyncAvailable: false,
+          error: "Cloud sync is not configured on the server.",
+        },
+        { status: 503 }
+      );
     }
 
     const supabase = getSupabaseAdmin();
@@ -87,7 +94,14 @@ export async function PUT(req) {
 
     if (currentUserError || !currentUser) {
       console.error("Failed to load user profile before save:", currentUserError);
-      return NextResponse.json({ ok: true, cloudSyncAvailable: false });
+      return NextResponse.json(
+        {
+          ok: false,
+          cloudSyncAvailable: false,
+          error: "Could not load your cloud profile before saving.",
+        },
+        { status: 503 }
+      );
     }
 
     const { error } = await updateFintrakUserDataProfile(supabase, user.id, {
@@ -97,12 +111,26 @@ export async function PUT(req) {
 
     if (error) {
       console.error("Failed to save user profile to Supabase:", error);
-      return NextResponse.json({ ok: true, cloudSyncAvailable: false });
+      return NextResponse.json(
+        {
+          ok: false,
+          cloudSyncAvailable: false,
+          error: "Could not save your data to cloud storage.",
+        },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json({ ok: true, cloudSyncAvailable: true });
   } catch (error) {
     console.error("Failed to save user data:", error);
-    return NextResponse.json({ ok: true, cloudSyncAvailable: false });
+    return NextResponse.json(
+      {
+        ok: false,
+        cloudSyncAvailable: false,
+        error: "Unexpected cloud sync error.",
+      },
+      { status: 500 }
+    );
   }
 }

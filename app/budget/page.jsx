@@ -152,16 +152,20 @@ export default function BudgetPage() {
       writeBudgetTargets(user.id, sanitizedBudgets);
 
       try {
-        const ok = await saveCloudUserData({ budgetTargets: sanitizedBudgets });
+        const result = await saveCloudUserData({
+          budgetTargets: sanitizedBudgets,
+        });
         setBudgets(sanitizedBudgets);
         setSavedBudgets(sanitizedBudgets);
+        setCloudSyncAvailable(Boolean(result?.cloudSyncAvailable));
         setStatusMessage(
-          ok && cloudSyncAvailable
+          result?.cloudSyncAvailable
             ? "Budgets synced to Supabase automatically."
             : "Budgets saved on this device."
         );
       } catch (error) {
         console.warn("Failed to save budgets:", error);
+        setCloudSyncAvailable(false);
         setStatusMessage("Budget sync failed. Your latest changes are still stored on this device.");
       }
     }, 700);

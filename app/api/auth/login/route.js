@@ -6,6 +6,25 @@ import {
   normalizeLoginIdentifier,
 } from "../../../lib/fintrakUsers";
 import { verifyPassword } from "../../../lib/passwords";
+import {
+  buildLoginThrottleKey,
+  clearDistributedLoginAttemptState,
+  createLoginLockedMessage,
+  isLoginLocked,
+  readDistributedLoginAttemptState,
+  trackDistributedFailedLoginAttempt,
+} from "../../../lib/loginSecurity.mjs";
+
+const INVALID_CREDENTIALS_MESSAGE = "Invalid username/email or password.";
+
+function getClientAddress(req) {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+
+  return req.headers.get("x-real-ip") || "unknown";
+}
 
 export async function POST(req) {
   try {
@@ -19,11 +38,20 @@ export async function POST(req) {
     const body = await req.json();
     const identifier = normalizeLoginIdentifier(body?.identifier);
     const password = String(body?.password || "");
+    const throttleKey = buildLoginThrottleKey(identifier, getClientAddress(req));
 
     if (!identifier || !password) {
       return NextResponse.json(
         { error: "Username/email and password are required." },
         { status: 400 }
+      );
+    }
+
+    const attemptState = await readDistributedLoginAttemptState(throttleKey);
+    if (isLoginLocked(attemptState)) {
+      return NextResponse.json(
+        { error: createLoginLockedMessage(attemptState) },
+        { status: 429 }
       );
     }
 
@@ -42,19 +70,35 @@ export async function POST(req) {
     }
 
     if (!user) {
+      const nextAttemptState = await trackDistributedFailedLoginAttempt(
+        throttleKey
+      );
       return NextResponse.json(
-        { error: "No FinTrak account was found for those credentials." },
-        { status: 401 }
+        {
+          error: isLoginLocked(nextAttemptState)
+            ? createLoginLockedMessage(nextAttemptState)
+            : INVALID_CREDENTIALS_MESSAGE,
+        },
+        { status: isLoginLocked(nextAttemptState) ? 429 : 401 }
       );
     }
 
     const passwordMatches = await verifyPassword(password, user.passwordHash);
     if (!passwordMatches) {
+      const nextAttemptState = await trackDistributedFailedLoginAttempt(
+        throttleKey
+      );
       return NextResponse.json(
-        { error: "Incorrect password." },
-        { status: 401 }
+        {
+          error: isLoginLocked(nextAttemptState)
+            ? createLoginLockedMessage(nextAttemptState)
+            : INVALID_CREDENTIALS_MESSAGE,
+        },
+        { status: isLoginLocked(nextAttemptState) ? 429 : 401 }
       );
     }
+
+    await clearDistributedLoginAttemptState(throttleKey);
 
     const response = NextResponse.json({
       ok: true,

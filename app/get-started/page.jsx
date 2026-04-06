@@ -16,6 +16,11 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import {
+  isValidEmail,
+  isValidUsername,
+  USERNAME_REQUIREMENTS_MESSAGE,
+} from "../lib/authValidation.mjs";
 
 const SUPPORT_EMAIL = "support@fintrak.online";
 
@@ -37,15 +42,13 @@ const MARKETING_POINTS = [
   "100% free, always.",
 ];
 
-function isValidEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
-}
-
 function validateSignup(form) {
   const errors = {};
 
   if (!String(form.username || "").trim()) {
-    errors.username = "Name is required.";
+    errors.username = "Username is required.";
+  } else if (!isValidUsername(form.username)) {
+    errors.username = USERNAME_REQUIREMENTS_MESSAGE;
   }
 
   if (!String(form.email || "").trim()) {
@@ -388,7 +391,7 @@ export default function GetStartedPage() {
                       {mode === "signup" ? (
                         <div className="mt-7 space-y-4">
                           <AuthInput
-                            label="Name"
+                            label="Username"
                             value={signupForm.username}
                             onChange={(event) => {
                               setSignupForm((current) => ({
@@ -400,7 +403,7 @@ export default function GetStartedPage() {
                                 username: "",
                               }));
                             }}
-                            placeholder="Aarav Mehta"
+                            placeholder="aarav_mehta"
                             error={signupErrors.username}
                           />
 

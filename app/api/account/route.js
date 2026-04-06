@@ -70,6 +70,8 @@ export async function DELETE(req) {
       );
     }
 
+    let warning = "";
+
     if (user.gmailRefreshToken) {
       let refreshToken = "";
 
@@ -77,38 +79,30 @@ export async function DELETE(req) {
         refreshToken = decryptSecretValue(user.gmailRefreshToken);
       } catch (decryptError) {
         console.error("Failed to decrypt Gmail refresh token during deletion:", decryptError);
-        return NextResponse.json(
-          {
-            error:
-              "Could not revoke Gmail access before deleting your account. Please reconnect Gmail once and try deletion again.",
-          },
-          { status: 500 }
-        );
+        warning =
+          "Your account was deleted, but Gmail access could not be revoked automatically.";
       }
 
-      try {
-        await revokeGoogleToken(refreshToken);
-      } catch (revokeError) {
-        const message =
-          revokeError instanceof Error
-            ? revokeError.message
-            : "Google token revocation failed";
+      if (refreshToken) {
+        try {
+          await revokeGoogleToken(refreshToken);
+        } catch (revokeError) {
+          const message =
+            revokeError instanceof Error
+              ? revokeError.message
+              : "Google token revocation failed";
 
-        if (revokeError?.status !== 400) {
-          console.error("Failed to revoke Gmail access during deletion:", revokeError);
-          return NextResponse.json(
-            {
-              error:
-                "Could not revoke Gmail access from your Google account. Please try again.",
-            },
-            { status: 502 }
-          );
+          if (revokeError?.status !== 400) {
+            console.error("Failed to revoke Gmail access during deletion:", revokeError);
+            warning =
+              "Your account was deleted, but Gmail access may still need to be removed from your Google account manually.";
+          } else {
+            console.warn(
+              "Google reported the Gmail token was already invalid during deletion:",
+              message
+            );
+          }
         }
-
-        console.warn(
-          "Google reported the Gmail token was already invalid during deletion:",
-          message
-        );
       }
     }
 
@@ -125,7 +119,7 @@ export async function DELETE(req) {
       );
     }
 
-    const response = NextResponse.json({ ok: true });
+    const response = NextResponse.json({ ok: true, warning: warning || null });
     clearSessionCookie(response);
     return response;
   } catch (error) {

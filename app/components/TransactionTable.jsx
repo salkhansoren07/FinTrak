@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { saveCloudUserData } from "../lib/userDataClient";
 import {
   readCategoryOverrides,
@@ -10,21 +11,38 @@ import { DEFAULT_CATEGORIES } from "../lib/categoryConfig.mjs";
 
 export default function TransactionTable({ transactions = [] }) {
   const { user } = useAuth();
+  const [displayTransactions, setDisplayTransactions] = useState(transactions);
+  const [syncNotice, setSyncNotice] = useState("");
+
+  useEffect(() => {
+    setDisplayTransactions(transactions);
+  }, [transactions]);
 
   const updateCategory = async (id, category) => {
     const existing = readCategoryOverrides(user?.id);
 
     existing[id] = category;
 
+    setDisplayTransactions((current) =>
+      current.map((transaction) =>
+        transaction.id === id
+          ? {
+              ...transaction,
+              category,
+            }
+          : transaction
+      )
+    );
     writeCategoryOverrides(user?.id, existing);
+    setSyncNotice("");
 
     try {
       await saveCloudUserData({ categoryOverrides: existing });
+      setSyncNotice("Category synced to your account.");
     } catch (error) {
       console.warn("Cloud sync write failed:", error);
+      setSyncNotice("Category saved on this device. Cloud sync is unavailable right now.");
     }
-
-    window.location.reload();
   };
 
   return (
@@ -40,13 +58,18 @@ export default function TransactionTable({ transactions = [] }) {
             </h3>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            {transactions.length} entries with editable categories
+            {displayTransactions.length} entries with editable categories
           </p>
         </div>
+        {syncNotice ? (
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            {syncNotice}
+          </p>
+        ) : null}
       </div>
 
       <div className="divide-y divide-slate-100 dark:divide-slate-800 md:hidden">
-        {transactions.map((t) => (
+        {displayTransactions.map((t) => (
           <div key={t.id} className="space-y-4 px-4 py-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -104,7 +127,7 @@ export default function TransactionTable({ transactions = [] }) {
           </thead>
 
           <tbody>
-            {transactions.map((t) => (
+            {displayTransactions.map((t) => (
               <tr
                 key={t.id}
                 className="border-t border-slate-200/70 transition hover:bg-slate-50/80 dark:border-slate-800/80 dark:hover:bg-slate-900/40"
