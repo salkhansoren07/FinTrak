@@ -12,6 +12,10 @@ import {
   deleteFintrakUserById,
   getFintrakUserById,
 } from "../../lib/fintrakUsers.js";
+import {
+  reportServerError,
+  reportServerWarning,
+} from "../../lib/observability.server.js";
 import { verifyPassword } from "../../lib/passwords.js";
 import { decryptSecretValue } from "../../lib/serverSecrets.js";
 
@@ -49,7 +53,13 @@ export async function DELETE(req) {
 
     if (error || !user) {
       if (error) {
-        console.error("Failed to load FinTrak user for deletion:", error);
+        await reportServerError({
+          event: "account.delete.user_lookup_failed",
+          message: "Failed to load FinTrak user during account deletion.",
+          error,
+          request: req,
+          context: { sessionUserId: session.id },
+        });
       }
       return NextResponse.json(
         { error: "Could not load your account for deletion." },
@@ -84,7 +94,13 @@ export async function DELETE(req) {
       try {
         refreshToken = decryptSecretValue(user.gmailRefreshToken);
       } catch (decryptError) {
-        console.error("Failed to decrypt Gmail refresh token during deletion:", decryptError);
+        await reportServerError({
+          event: "account.delete.gmail_token_decrypt_failed",
+          message: "Failed to decrypt Gmail refresh token during account deletion.",
+          error: decryptError,
+          request: req,
+          context: { sessionUserId: session.id },
+        });
         warning =
           "Your account was deleted, but Gmail access could not be revoked automatically.";
       }
@@ -99,14 +115,26 @@ export async function DELETE(req) {
               : "Google token revocation failed";
 
           if (revokeError?.status !== 400) {
-            console.error("Failed to revoke Gmail access during deletion:", revokeError);
+            await reportServerError({
+              event: "account.delete.gmail_revoke_failed",
+              message: "Failed to revoke Gmail access during account deletion.",
+              error: revokeError,
+              request: req,
+              context: { sessionUserId: session.id },
+            });
             warning =
               "Your account was deleted, but Gmail access may still need to be removed from your Google account manually.";
           } else {
-            console.warn(
-              "Google reported the Gmail token was already invalid during deletion:",
-              message
-            );
+            await reportServerWarning({
+              event: "account.delete.gmail_token_already_invalid",
+              message:
+                "Google reported the Gmail token was already invalid during account deletion.",
+              request: req,
+              context: {
+                sessionUserId: session.id,
+                googleMessage: message,
+              },
+            });
           }
         }
       }
@@ -118,7 +146,13 @@ export async function DELETE(req) {
     );
 
     if (deleteError) {
-      console.error("Failed to delete FinTrak user:", deleteError);
+      await reportServerError({
+        event: "account.delete.failed",
+        message: "Failed to delete FinTrak user.",
+        error: deleteError,
+        request: req,
+        context: { sessionUserId: session.id },
+      });
       return NextResponse.json(
         { error: "Could not delete your account right now." },
         { status: 500 }
@@ -129,7 +163,12 @@ export async function DELETE(req) {
     clearSessionCookie(response);
     return response;
   } catch (error) {
-    console.error("Unexpected account deletion error:", error);
+    await reportServerError({
+      event: "account.delete.unexpected_error",
+      message: "Unexpected account deletion error.",
+      error,
+      request: req,
+    });
     return NextResponse.json(
       { error: "Unexpected account deletion error." },
       { status: 500 }

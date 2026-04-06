@@ -193,6 +193,8 @@ export default function ProfilePage() {
                   Confirm with username or email
                 </label>
                 <input
+                  id="delete-account-confirmation"
+                  name="confirmation"
                   type="text"
                   value={confirmation}
                   onChange={(event) => setConfirmation(event.target.value)}
@@ -206,6 +208,8 @@ export default function ProfilePage() {
                   Current password
                 </label>
                 <input
+                  id="delete-account-password"
+                  name="password"
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}

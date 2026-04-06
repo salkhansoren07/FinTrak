@@ -1,10 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server.js";
 import {
   clearSessionCookie,
   readSessionFromRequest,
-} from "../../../lib/serverAuth";
-import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../../lib/supabaseAdmin";
-import { getFintrakUserById } from "../../../lib/fintrakUsers";
+} from "../../../lib/serverAuth.js";
+import {
+  getSupabaseAdmin,
+  hasSupabaseAdminConfig,
+} from "../../../lib/supabaseAdmin.js";
+import { getFintrakUserById } from "../../../lib/fintrakUsers.js";
+import { reportServerError } from "../../../lib/observability.server.js";
 
 export async function GET(req) {
   const session = readSessionFromRequest(req);
@@ -46,7 +50,13 @@ export async function GET(req) {
   const { user, error } = await getFintrakUserById(getSupabaseAdmin(), session.id);
   if (error || !user) {
     if (error) {
-      console.error("Failed to load FinTrak session user:", error);
+      await reportServerError({
+        event: "auth.session.user_lookup_failed",
+        message: "Failed to load FinTrak session user.",
+        error,
+        request: req,
+        context: { sessionUserId: session.id },
+      });
     }
 
     const response = NextResponse.json({

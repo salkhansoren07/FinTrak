@@ -7,6 +7,7 @@ import { useTransactions } from "../context/TransactionContext";
 import { useAuth } from "../context/AuthContext";
 import { fetchCloudUserData, saveCloudUserData } from "../lib/userDataClient";
 import { DEFAULT_CATEGORIES } from "../lib/categoryConfig.mjs";
+import { reportClientWarning } from "../lib/observability.client.js";
 import {
   readBudgetTargets,
   writeBudgetTargets,
@@ -66,7 +67,12 @@ export default function BudgetPage() {
           setIsLoaded(true);
         }
       } catch (error) {
-        console.warn("Failed to load budgets:", error);
+        reportClientWarning({
+          event: "budget.load_failed",
+          message: "Failed to load budgets from cloud sync.",
+          error,
+          context: { userId: user?.id || null },
+        });
         if (!cancelled) {
           setStatusMessage("Budgets are saving on this device.");
           setIsLoaded(true);
@@ -164,7 +170,12 @@ export default function BudgetPage() {
             : "Budgets saved on this device."
         );
       } catch (error) {
-        console.warn("Failed to save budgets:", error);
+        reportClientWarning({
+          event: "budget.save_failed",
+          message: "Failed to save budgets to cloud sync.",
+          error,
+          context: { userId: user?.id || null },
+        });
         setCloudSyncAvailable(false);
         setStatusMessage("Budget sync failed. Your latest changes are still stored on this device.");
       }
@@ -249,6 +260,8 @@ export default function BudgetPage() {
                   <label className="flex min-w-[220px] flex-col gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
                     Set budget amount
                     <input
+                      id={`budget-${row.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                      name={`budget-${row.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                       type="number"
                       min="0"
                       step="1"

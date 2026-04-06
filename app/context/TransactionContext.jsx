@@ -7,6 +7,14 @@ import { fetchCloudUserData, saveCloudUserData } from "../lib/userDataClient";
 import { fetchGmailTransactions } from "../lib/gmailSyncClient";
 import { isSessionSetupRoute, readClientSession } from "../lib/clientSession";
 import {
+  buildTransactionCacheKey,
+  resolveTransactionCacheUserKey,
+} from "../lib/transactionCache.mjs";
+import {
+  reportClientError,
+  reportClientWarning,
+} from "../lib/observability.client.js";
+import {
   clearLegacyCategoryOverrides,
   readCategoryOverrides,
   writeCategoryOverrides,
@@ -17,13 +25,12 @@ const TransactionContext = createContext();
 const TRANSACTION_CACHE_VERSION = 1;
 const TRANSACTION_CACHE_TTL_MS = 5 * 60 * 1000;
 
-function buildTransactionCacheKey(userKey) {
-  return `transactionCache:${userKey}`;
-}
-
 function readTransactionCache(userKey) {
   try {
-    const raw = localStorage.getItem(buildTransactionCacheKey(userKey));
+    const cacheKey = buildTransactionCacheKey(userKey);
+    if (!cacheKey) return null;
+
+    const raw = localStorage.getItem(cacheKey);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
@@ -41,8 +48,11 @@ function readTransactionCache(userKey) {
 }
 
 function writeTransactionCache(userKey, transactions) {
+  const cacheKey = buildTransactionCacheKey(userKey);
+  if (!cacheKey) return;
+
   localStorage.setItem(
-    buildTransactionCacheKey(userKey),
+    cacheKey,
     JSON.stringify({
       version: TRANSACTION_CACHE_VERSION,
       savedAt: Date.now(),
@@ -68,7 +78,7 @@ function isQuotaError(message) {
 }
 
 export function TransactionProvider({ children }) {
-  const { authenticated, hasPasscode, user } = useAuth();
+  const { authenticated, hasPasscode, refreshSession, user } = useAuth();
   const pathname = usePathname();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -112,7 +122,9 @@ export function TransactionProvider({ children }) {
       try {
         const localOverrides = readCategoryOverrides(user?.id);
         let cloudOverrides = {};
-        let userKey = "default";
+        let userKey = resolveTransactionCacheUserKey({
+          authenticatedUserId: user?.id,
+        });
 
         try {
           const cloudData = await fetchCloudUserData();
@@ -122,11 +134,17 @@ export function TransactionProvider({ children }) {
           ) {
             cloudOverrides = cloudData.categoryOverrides;
           }
-          if (cloudData?.userKey) {
-            userKey = cloudData.userKey;
-          }
+          userKey = resolveTransactionCacheUserKey({
+            authenticatedUserId: user?.id,
+            cloudUserKey: cloudData?.userKey,
+          });
         } catch (error) {
-          console.warn("Cloud sync read failed:", error);
+          reportClientWarning({
+            event: "transactions.cloud_sync_read_failed",
+            message: "Cloud sync read failed while loading transactions.",
+            error,
+            context: { userId: user?.id || null },
+          });
         }
 
         const overrides = { ...cloudOverrides, ...localOverrides };
@@ -138,7 +156,12 @@ export function TransactionProvider({ children }) {
           Object.keys(cloudOverrides).length === 0
         ) {
           saveCloudUserData({ categoryOverrides: overrides }).catch((error) => {
-            console.warn("Cloud sync write failed:", error);
+            reportClientWarning({
+              event: "transactions.cloud_sync_write_failed",
+              message: "Cloud sync write failed while persisting category overrides.",
+              error,
+              context: { userId: user?.id || null },
+            });
           });
         }
 
@@ -173,7 +196,12 @@ export function TransactionProvider({ children }) {
         if (cancelled) return;
 
         if (err?.status === 429 || isQuotaError(message)) {
-          console.warn("Gmail quota limited sync:", message);
+          reportClientWarning({
+            event: "transactions.gmail_rate_limited",
+            message: "Gmail transaction sync was rate limited.",
+            error: err,
+            context: { userId: user?.id || null },
+          });
           if (cachedTransactions.length > 0) {
             setSyncWarning(
               "Showing saved data. Gmail rate limit was hit, so live sync will resume automatically in a few minutes."
@@ -191,14 +219,31 @@ export function TransactionProvider({ children }) {
           message.includes("401") ||
           message.includes("403")
         ) {
-          console.warn("Gmail auth error:", message);
+          refreshSession().catch(() => null);
+
+          if (message === "Unauthorized") {
+            setSyncError("Your FinTrak session expired. Please sign in again.");
+            return;
+          }
+
+          reportClientWarning({
+            event: "transactions.gmail_auth_error",
+            message: "Gmail auth error interrupted transaction sync.",
+            error: err,
+            context: { userId: user?.id || null },
+          });
           setSyncError(
             "Your Gmail connection expired or was revoked. Please reconnect Gmail to resume syncing."
           );
           return;
         }
 
-        console.error("Fetch Error:", err);
+        reportClientError({
+          event: "transactions.sync_failed",
+          message: "Transaction sync failed unexpectedly.",
+          error: err,
+          context: { userId: user?.id || null },
+        });
         setSyncError(message);
       } finally {
         if (!cancelled) {
@@ -212,7 +257,7 @@ export function TransactionProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [authenticated, hasPasscode, pathname, user?.id]);
+  }, [authenticated, hasPasscode, pathname, refreshSession, user?.id]);
 
   const filteredTransactions = useMemo(() => {
     if (!transactions.length) return [];

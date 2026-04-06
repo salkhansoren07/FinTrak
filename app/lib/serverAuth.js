@@ -72,8 +72,17 @@ function readSignedCookie(req, name) {
   return decodeSignedPayload(value);
 }
 
+function readSignedCookieFromStore(cookieStore, name) {
+  const value = cookieStore.get(name)?.value;
+  return decodeSignedPayload(value);
+}
+
 export function readSessionFromRequest(req) {
   return readSignedCookie(req, SESSION_COOKIE_NAME);
+}
+
+export function readSessionFromCookieStore(cookieStore) {
+  return readSignedCookieFromStore(cookieStore, SESSION_COOKIE_NAME);
 }
 
 export function applySessionCookie(response, user) {

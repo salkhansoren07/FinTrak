@@ -8,6 +8,7 @@ import {
 } from "../lib/categoryOverridesStorage.mjs";
 import { useAuth } from "../context/AuthContext";
 import { DEFAULT_CATEGORIES } from "../lib/categoryConfig.mjs";
+import { reportClientWarning } from "../lib/observability.client.js";
 
 export default function TransactionTable({ transactions = [] }) {
   const { user } = useAuth();
@@ -40,7 +41,12 @@ export default function TransactionTable({ transactions = [] }) {
       await saveCloudUserData({ categoryOverrides: existing });
       setSyncNotice("Category synced to your account.");
     } catch (error) {
-      console.warn("Cloud sync write failed:", error);
+      reportClientWarning({
+        event: "transactions.category_sync_failed",
+        message: "Cloud sync write failed while updating a transaction category.",
+        error,
+        context: { userId: user?.id || null, transactionId: id },
+      });
       setSyncNotice("Category saved on this device. Cloud sync is unavailable right now.");
     }
   };
@@ -95,6 +101,8 @@ export default function TransactionTable({ transactions = [] }) {
 
             <div className="flex items-center justify-between gap-3">
               <select
+                id={`transaction-category-mobile-${t.id}`}
+                name={`category-${t.id}`}
                 value={t.category}
                 onChange={(e) => updateCategory(t.id, e.target.value)}
                 className="max-w-[52%] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
@@ -140,6 +148,8 @@ export default function TransactionTable({ transactions = [] }) {
                 </td>
                 <td className="p-6">
                   <select
+                    id={`transaction-category-desktop-${t.id}`}
+                    name={`category-${t.id}`}
                     value={t.category}
                     onChange={(e) => updateCategory(t.id, e.target.value)}
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"

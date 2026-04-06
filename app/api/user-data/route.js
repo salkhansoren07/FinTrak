@@ -8,6 +8,10 @@ import {
   getFintrakUserById,
   updateFintrakUserDataProfile,
 } from "../../lib/fintrakUsers.js";
+import {
+  reportServerError,
+  reportServerWarning,
+} from "../../lib/observability.server.js";
 
 export async function GET(req) {
   try {
@@ -29,7 +33,13 @@ export async function GET(req) {
     const { user: appUser, error } = await getFintrakUserById(supabase, user.id);
 
     if (error) {
-      console.error("Failed to read user profile from Supabase:", error);
+      await reportServerWarning({
+        event: "user_data.read.supabase_lookup_failed",
+        message: "Failed to read user profile from Supabase.",
+        error,
+        request: req,
+        context: { sessionUserId: user.id },
+      });
       return NextResponse.json({
         categoryOverrides: {},
         budgetTargets: {},
@@ -45,7 +55,12 @@ export async function GET(req) {
       cloudSyncAvailable: true,
     });
   } catch (error) {
-    console.error("Failed to load user data:", error);
+    await reportServerError({
+      event: "user_data.read.unexpected_error",
+      message: "Failed to load user data.",
+      error,
+      request: req,
+    });
     return NextResponse.json(
       {
         categoryOverrides: {},
@@ -93,7 +108,13 @@ export async function PUT(req) {
     );
 
     if (currentUserError || !currentUser) {
-      console.error("Failed to load user profile before save:", currentUserError);
+      await reportServerError({
+        event: "user_data.write.profile_lookup_failed",
+        message: "Failed to load user profile before save.",
+        error: currentUserError,
+        request: req,
+        context: { sessionUserId: user.id },
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -110,7 +131,13 @@ export async function PUT(req) {
     });
 
     if (error) {
-      console.error("Failed to save user profile to Supabase:", error);
+      await reportServerError({
+        event: "user_data.write.supabase_update_failed",
+        message: "Failed to save user profile to Supabase.",
+        error,
+        request: req,
+        context: { sessionUserId: user.id },
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -123,7 +150,12 @@ export async function PUT(req) {
 
     return NextResponse.json({ ok: true, cloudSyncAvailable: true });
   } catch (error) {
-    console.error("Failed to save user data:", error);
+    await reportServerError({
+      event: "user_data.write.unexpected_error",
+      message: "Failed to save user data.",
+      error,
+      request: req,
+    });
     return NextResponse.json(
       {
         ok: false,

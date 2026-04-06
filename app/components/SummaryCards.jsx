@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { fetchCloudUserData } from "../lib/userDataClient";
 import { readBudgetTargets, writeBudgetTargets } from "../lib/budgetStorage.mjs";
+import { reportClientWarning } from "../lib/observability.client.js";
 
 export default function SummaryCards({ transactions = [] }) {
   const { user } = useAuth();
@@ -48,7 +49,12 @@ export default function SummaryCards({ transactions = [] }) {
           setCloudBudgetTargets(nextBudgets);
         }
       } catch (error) {
-        console.warn("Failed to load budget targets:", error);
+        reportClientWarning({
+          event: "summary_cards.budget_load_failed",
+          message: "Failed to load budget targets for summary cards.",
+          error,
+          context: { userId: user?.id || null },
+        });
       }
     }
 

@@ -89,6 +89,8 @@ Set these in Vercel Project -> Settings -> Environment Variables:
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `APP_SESSION_SECRET` (recommended, but the app can fall back to the server secret in development)
+- `OBSERVABILITY_LOG_LEVEL` (`info` by default; supports `debug`, `info`, `warn`, `error`)
+- `OBSERVABILITY_WEBHOOK_URL` (optional; forwards structured warn/error events to your monitoring webhook)
 
 Google OAuth scopes required by this app:
 
@@ -117,3 +119,41 @@ Add these Google OAuth redirect URIs in Google Cloud:
 ### 5. Redeploy
 
 After adding environment variables, redeploy the app from Vercel.
+
+## Observability guide
+
+The app now emits structured server and client observability events. In production, start by collecting `warn` and `error` events and forwarding them to your log platform or alert webhook.
+
+### Watch first
+
+- `auth.login.user_lookup_failed`
+- `auth.signup.create_failed`
+- `auth.session.user_lookup_failed`
+- `auth.google_callback.profile_read_failed`
+- `auth.google_callback.profile_write_failed`
+- `gmail.sync.failed`
+- `gmail.sync.rate_limited`
+- `user_data.write.supabase_update_failed`
+- `account.delete.failed`
+- `account.delete.gmail_revoke_failed`
+- `passcode.save.failed`
+- `passcode.verify.unexpected_error`
+- `transactions.sync_failed`
+- `transactions.gmail_auth_error`
+
+### Recommended alert rules
+
+- Alert immediately on any spike in `auth.login.unexpected_error`, `auth.signup.unexpected_error`, or `auth.session.user_lookup_failed`.
+- Alert immediately on any `gmail.sync.failed` burst, especially if paired with `auth.google_callback.*` failures.
+- Alert when `gmail.sync.rate_limited` appears repeatedly over a short window, since users may start seeing stale transaction data.
+- Alert on any `user_data.write.supabase_update_failed` or repeated `budget.save_failed` events, because users may think data is safely synced when it is not.
+- Alert on any `account.delete.failed` event, since account deletion should be highly reliable.
+- Review `transactions.gmail_auth_error` and `auth.google_callback.refresh_token_missing` daily, because they indicate reconnect friction in a core flow.
+
+### Good first dashboard
+
+- Auth errors by event name
+- Gmail sync errors vs rate limits
+- Supabase profile read/write failures
+- Account deletion failures
+- Client-side session refresh failures

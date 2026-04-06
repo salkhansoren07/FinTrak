@@ -8,10 +8,13 @@ import {
   setPinVerified,
 } from "../lib/clientSession";
 
+const SESSION_EXPIRED_REDIRECT = "/get-started?tab=login&authMessage=session_expired";
+
 export default function Unlock() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [showResetForm, setShowResetForm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetPassword, setResetPassword] = useState("");
   const [resetError, setResetError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -20,7 +23,8 @@ export default function Unlock() {
 
   const verify = async () => {
     if (!user?.id) {
-      router.replace("/");
+      await logout();
+      router.replace(SESSION_EXPIRED_REDIRECT);
       return;
     }
 
@@ -41,18 +45,24 @@ export default function Unlock() {
         return;
       }
 
+      if (res.status === 401 && payload?.error === "Unauthorized") {
+        await logout();
+        router.replace(SESSION_EXPIRED_REDIRECT);
+        return;
+      }
+
       setError(payload?.error || "Incorrect passcode.");
       if (res.status !== 429) {
         setPin("");
-        setTimeout(() => setError(""), 1000);
       }
     });
   };
 
-  const resetPin = () => {
+  const requestResetPin = () => {
     if (!showResetForm) {
       setShowResetForm(true);
       setResetError("");
+      setShowResetConfirm(false);
       return;
     }
 
@@ -61,8 +71,11 @@ export default function Unlock() {
       return;
     }
 
-    if (!confirm("Reset PIN? FinTrak sign-in will be required again.")) return;
+    setResetError("");
+    setShowResetConfirm(true);
+  };
 
+  const confirmResetPin = () => {
     startTransition(async () => {
       if (user?.id) {
         const res = await fetch("/api/passcode", {
@@ -75,7 +88,16 @@ export default function Unlock() {
 
         if (!res?.ok) {
           const payload = await res?.json().catch(() => ({}));
+
+          if (res?.status === 401) {
+            setShowResetConfirm(false);
+            await logout();
+            router.replace(SESSION_EXPIRED_REDIRECT);
+            return;
+          }
+
           setResetError(payload?.error || "Could not reset your passcode.");
+          setShowResetConfirm(false);
           return;
         }
 
@@ -125,12 +147,19 @@ export default function Unlock() {
         </div>
 
         <input
+          id="unlock-passcode"
+          name="passcode"
           type="password"
           inputMode="numeric"
           maxLength={6}
           autoFocus
           value={pin}
-          onChange={e => setPin(e.target.value.replace(/\D/g, ""))}
+          onChange={(e) => {
+            setPin(e.target.value.replace(/\D/g, ""));
+            if (error) {
+              setError("");
+            }
+          }}
           className="w-full mb-4 text-center tracking-[0.5em] text-xl font-semibold bg-transparent border-b border-slate-300 dark:border-slate-600 outline-none pb-2"
         />
 
@@ -145,18 +174,28 @@ export default function Unlock() {
         {/* FORGOT PIN */}
         <button
           disabled={isPending}
-          onClick={resetPin}
+          onClick={requestResetPin}
           className="mt-4 text-sm text-slate-400 hover:text-red-500 transition"
         >
-          {showResetForm ? "Confirm PIN reset" : "Forgot PIN?"}
+          {showResetForm ? "Review PIN reset" : "Forgot PIN?"}
         </button>
 
         {showResetForm ? (
           <div className="mt-4 space-y-3 text-left">
             <input
+              id="unlock-reset-password"
+              name="password"
               type="password"
               value={resetPassword}
-              onChange={(event) => setResetPassword(event.target.value)}
+              onChange={(event) => {
+                setResetPassword(event.target.value);
+                if (resetError) {
+                  setResetError("");
+                }
+                if (showResetConfirm) {
+                  setShowResetConfirm(false);
+                }
+              }}
               placeholder="Current account password"
               className="w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
@@ -168,6 +207,35 @@ export default function Unlock() {
             <p className="text-xs text-slate-400">
               Resetting the passcode now requires your account password.
             </p>
+
+            {showResetConfirm ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                  Reset passcode and sign out?
+                </p>
+                <p className="mt-2 text-sm leading-6 text-amber-800 dark:text-amber-200">
+                  This removes your existing device passcode. You will be signed
+                  out and will need to log in again before creating a new one.
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 rounded-xl border border-amber-300 px-4 py-2 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-800 dark:text-amber-100 dark:hover:bg-amber-950/40"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={confirmResetPin}
+                    className="flex-1 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isPending ? "Resetting..." : "Reset passcode"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

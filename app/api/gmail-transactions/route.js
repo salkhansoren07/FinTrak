@@ -1,13 +1,20 @@
-import { NextResponse } from "next/server";
-import { parseTransaction } from "../../lib/parseTransaction";
-import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../lib/supabaseAdmin";
-import { readSessionFromRequest } from "../../lib/serverAuth";
-import { getServerGmailAccessToken } from "../../lib/googleSession";
+import { NextResponse } from "next/server.js";
+import { parseTransaction } from "../../lib/parseTransaction.js";
+import {
+  getSupabaseAdmin,
+  hasSupabaseAdminConfig,
+} from "../../lib/supabaseAdmin.js";
+import { readSessionFromRequest } from "../../lib/serverAuth.js";
+import { getServerGmailAccessToken } from "../../lib/googleSession.js";
 import {
   getSharedJson,
   hasSharedRedisConfig,
   setSharedJson,
 } from "../../lib/sharedRedis.mjs";
+import {
+  reportServerError,
+  reportServerWarning,
+} from "../../lib/observability.server.js";
 
 const QUERY =
   '(debited OR credited OR transaction OR txn OR upi OR utr OR withdrawn OR deposited OR "available bal" OR "a/c")';
@@ -252,6 +259,22 @@ export async function GET(req) {
             normalized.includes("rate limit")
           ? 429
           : 500;
+
+    if (status === 429) {
+      await reportServerWarning({
+        event: "gmail.sync.rate_limited",
+        message: "Gmail sync was rate limited.",
+        error,
+        request: req,
+      });
+    } else if (status >= 500) {
+      await reportServerError({
+        event: "gmail.sync.failed",
+        message: "Gmail sync failed.",
+        error,
+        request: req,
+      });
+    }
 
     return NextResponse.json({ error: message }, { status });
   }

@@ -102,6 +102,8 @@ export default function PublicAuthCard() {
               Username
             </span>
             <input
+              id="public-signup-username"
+              name="username"
               value={signupForm.username}
               onChange={(event) =>
                 setSignupForm((current) => ({
@@ -119,6 +121,8 @@ export default function PublicAuthCard() {
               Email
             </span>
             <input
+              id="public-signup-email"
+              name="email"
               type="email"
               value={signupForm.email}
               onChange={(event) =>
@@ -137,6 +141,8 @@ export default function PublicAuthCard() {
               Password
             </span>
             <input
+              id="public-signup-password"
+              name="password"
               type="password"
               value={signupForm.password}
               onChange={(event) =>
@@ -167,6 +173,8 @@ export default function PublicAuthCard() {
               Username or email
             </span>
             <input
+              id="public-login-identifier"
+              name="identifier"
               value={loginForm.identifier}
               onChange={(event) =>
                 setLoginForm((current) => ({
@@ -184,6 +192,8 @@ export default function PublicAuthCard() {
               Password
             </span>
             <input
+              id="public-login-password"
+              name="password"
               type="password"
               value={loginForm.password}
               onChange={(event) =>

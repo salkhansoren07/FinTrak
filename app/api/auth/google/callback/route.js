@@ -1,17 +1,21 @@
-import { NextResponse } from "next/server";
-import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../../../lib/supabaseAdmin";
+import { NextResponse } from "next/server.js";
+import {
+  getSupabaseAdmin,
+  hasSupabaseAdminConfig,
+} from "../../../../lib/supabaseAdmin.js";
 import {
   clearOAuthFlowCookie,
   readOAuthFlowFromRequest,
   readSessionFromRequest,
-} from "../../../../lib/serverAuth";
-import { exchangeGoogleCode } from "../../../../lib/googleOAuth";
-import { getUserFromAccessToken } from "../../../../lib/googleIdentity";
-import { encryptSecretValue } from "../../../../lib/serverSecrets";
+} from "../../../../lib/serverAuth.js";
+import { exchangeGoogleCode } from "../../../../lib/googleOAuth.js";
+import { getUserFromAccessToken } from "../../../../lib/googleIdentity.js";
+import { encryptSecretValue } from "../../../../lib/serverSecrets.js";
 import {
   getFintrakUserById,
   updateFintrakUserGmailConnection,
-} from "../../../../lib/fintrakUsers";
+} from "../../../../lib/fintrakUsers.js";
+import { reportServerError } from "../../../../lib/observability.server.js";
 
 function redirectWithStatus(req, params = {}) {
   const url = new URL("/", req.url);
@@ -68,7 +72,13 @@ export async function GET(req) {
     );
 
     if (appUserError || !appUser) {
-      console.error("Failed to read FinTrak account before Gmail connect:", appUserError);
+      await reportServerError({
+        event: "auth.google_callback.profile_read_failed",
+        message: "Failed to read FinTrak account before Gmail connect.",
+        error: appUserError,
+        request: req,
+        context: { sessionUserId: session.id },
+      });
       return finalizeRedirect(req, { authError: "profile_read_failed" });
     }
 
@@ -87,7 +97,12 @@ export async function GET(req) {
         return retryResponse;
       }
 
-      console.error("Google OAuth callback did not return a refresh token");
+      await reportServerError({
+        event: "auth.google_callback.refresh_token_missing",
+        message: "Google OAuth callback did not return a reusable refresh token.",
+        request: req,
+        context: { sessionUserId: session.id },
+      });
       return finalizeRedirect(req, { authError: "refresh_token_missing" });
     }
 
@@ -99,7 +114,13 @@ export async function GET(req) {
     });
 
     if (upsertResult.error) {
-      console.error("Failed to save Google refresh token:", upsertResult.error);
+      await reportServerError({
+        event: "auth.google_callback.profile_write_failed",
+        message: "Failed to save Google refresh token.",
+        error: upsertResult.error,
+        request: req,
+        context: { sessionUserId: session.id },
+      });
       return finalizeRedirect(req, { authError: "profile_write_failed" });
     }
 
@@ -107,7 +128,13 @@ export async function GET(req) {
     clearOAuthFlowCookie(response);
     return response;
   } catch (error) {
-    console.error("Google OAuth callback failed:", error);
+    await reportServerError({
+      event: "auth.google_callback.unexpected_error",
+      message: "Google OAuth callback failed.",
+      error,
+      request: req,
+      context: { sessionUserId: session?.id || null },
+    });
     return finalizeRedirect(req, { authError: "oauth_callback_failed" });
   }
 }

@@ -1,17 +1,21 @@
-import { NextResponse } from "next/server";
-import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../../lib/supabaseAdmin";
-import { applySessionCookie } from "../../../lib/serverAuth";
+import { NextResponse } from "next/server.js";
+import {
+  getSupabaseAdmin,
+  hasSupabaseAdminConfig,
+} from "../../../lib/supabaseAdmin.js";
+import { applySessionCookie } from "../../../lib/serverAuth.js";
 import {
   createFintrakUser,
   isEmailTaken,
   isUsernameTaken,
-} from "../../../lib/fintrakUsers";
-import { hashPassword } from "../../../lib/passwords";
+} from "../../../lib/fintrakUsers.js";
+import { hashPassword } from "../../../lib/passwords.js";
 import {
   isValidEmail,
   isValidUsername,
   USERNAME_REQUIREMENTS_MESSAGE,
 } from "../../../lib/authValidation.mjs";
+import { reportServerError } from "../../../lib/observability.server.js";
 
 function normalizeInput(value) {
   return String(value || "").trim();
@@ -61,7 +65,13 @@ export async function POST(req) {
     ]);
 
     if (usernameCheck.error || emailCheck.error) {
-      console.error("Failed to validate FinTrak signup:", usernameCheck.error || emailCheck.error);
+      await reportServerError({
+        event: "auth.signup.validation_lookup_failed",
+        message: "Failed to validate FinTrak signup uniqueness.",
+        error: usernameCheck.error || emailCheck.error,
+        request: req,
+        context: { username, email },
+      });
       return NextResponse.json(
         { error: "Could not validate account details. Please try again." },
         { status: 500 }
@@ -90,7 +100,13 @@ export async function POST(req) {
     });
 
     if (error || !user) {
-      console.error("Failed to create FinTrak account:", error);
+      await reportServerError({
+        event: "auth.signup.create_failed",
+        message: "Failed to create FinTrak account.",
+        error,
+        request: req,
+        context: { username, email },
+      });
       return NextResponse.json(
         { error: "Could not create your FinTrak account." },
         { status: 500 }
@@ -111,7 +127,12 @@ export async function POST(req) {
     applySessionCookie(response, user);
     return response;
   } catch (error) {
-    console.error("FinTrak signup failed:", error);
+    await reportServerError({
+      event: "auth.signup.unexpected_error",
+      message: "FinTrak signup failed.",
+      error,
+      request: req,
+    });
     return NextResponse.json(
       { error: "Unexpected signup error." },
       { status: 500 }

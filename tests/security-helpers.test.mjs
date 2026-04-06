@@ -5,6 +5,7 @@ import {
   readCategoryOverrides,
   writeCategoryOverrides,
 } from "../app/lib/categoryOverridesStorage.mjs";
+import { getSessionRedirect } from "../app/lib/clientSession.js";
 import {
   isValidUsername,
   USERNAME_REQUIREMENTS_MESSAGE,
@@ -22,6 +23,10 @@ import {
   encodeUserDataProfile,
   normalizeStoredUserDataProfile,
 } from "../app/lib/userDataProfile.mjs";
+import {
+  buildTransactionCacheKey,
+  resolveTransactionCacheUserKey,
+} from "../app/lib/transactionCache.mjs";
 import {
   LOGIN_ATTEMPT_WINDOW_MS,
   MAX_LOGIN_FAILURES,
@@ -156,4 +161,33 @@ test("login attempt tracking expires after the rolling window", () => {
   trackFailedLoginAttempt(key, now);
 
   assert.equal(readTrackedLoginAttemptState(key, now + LOGIN_ATTEMPT_WINDOW_MS + 1), null);
+});
+
+test("transaction cache keys stay scoped to the authenticated user", () => {
+  assert.equal(
+    resolveTransactionCacheUserKey({
+      authenticatedUserId: "user-123",
+    }),
+    "user-123"
+  );
+
+  assert.equal(
+    resolveTransactionCacheUserKey({
+      authenticatedUserId: "user-123",
+      cloudUserKey: "cloud-user-123",
+    }),
+    "cloud-user-123"
+  );
+
+  assert.equal(buildTransactionCacheKey("user-123"), "transactionCache:user-123");
+  assert.equal(buildTransactionCacheKey(""), null);
+});
+
+test("session redirect handles partial auth states safely", () => {
+  assert.equal(getSessionRedirect("/profile", false), "/");
+  assert.equal(getSessionRedirect("/get-started", false), null);
+  assert.equal(getSessionRedirect("/profile", true, "user-1", false), "/passcode");
+  assert.equal(getSessionRedirect("/budget", true, "user-1", true), "/unlock");
+  assert.equal(getSessionRedirect("/passcode", true, "user-1", false), null);
+  assert.equal(getSessionRedirect("/unlock", true, "user-1", true), null);
 });

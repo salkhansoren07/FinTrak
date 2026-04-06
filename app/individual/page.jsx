@@ -47,6 +47,8 @@ export default function IndividualPage() {
         </h2>
 
         <input
+          id="individual-search"
+          name="search"
           placeholder="Search VPA..."
           value={search}
           onChange={e => setSearch(e.target.value)}

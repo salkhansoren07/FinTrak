@@ -17,6 +17,7 @@ import {
   readDistributedLoginAttemptState,
   trackDistributedFailedLoginAttempt,
 } from "../../../lib/loginSecurity.mjs";
+import { reportServerError } from "../../../lib/observability.server.js";
 
 const INVALID_CREDENTIALS_MESSAGE = "Invalid username/email or password.";
 
@@ -65,7 +66,13 @@ export async function POST(req) {
     );
 
     if (error) {
-      console.error("Failed to read FinTrak account:", error);
+      await reportServerError({
+        event: "auth.login.user_lookup_failed",
+        message: "Failed to read FinTrak account during login.",
+        error,
+        request: req,
+        context: { identifier },
+      });
       return NextResponse.json(
         { error: "Could not sign in right now." },
         { status: 500 }
@@ -117,7 +124,12 @@ export async function POST(req) {
     applySessionCookie(response, user);
     return response;
   } catch (error) {
-    console.error("FinTrak login failed:", error);
+    await reportServerError({
+      event: "auth.login.unexpected_error",
+      message: "FinTrak login failed.",
+      error,
+      request: req,
+    });
     return NextResponse.json(
       { error: "Unexpected login error." },
       { status: 500 }

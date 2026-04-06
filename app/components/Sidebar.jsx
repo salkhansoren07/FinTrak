@@ -253,6 +253,8 @@ export default function Sidebar({ onClose }) {
                 Filter Type
               </span>
               <select
+                id="sidebar-filter-type"
+                name="filterType"
                 value={dateFilter.type}
                 onChange={(e) =>
                   setDateFilter({ ...dateFilter, type: e.target.value })
@@ -267,6 +269,8 @@ export default function Sidebar({ onClose }) {
 
             {dateFilter.type === "month" ? (
               <input
+                id="sidebar-filter-month"
+                name="filterMonth"
                 type="month"
                 value={dateFilter.month || ""}
                 onChange={(e) =>
@@ -279,6 +283,8 @@ export default function Sidebar({ onClose }) {
             {dateFilter.type === "custom" ? (
               <div className="grid gap-3">
                 <input
+                  id="sidebar-filter-start"
+                  name="filterStart"
                   type="date"
                   value={dateFilter.start || ""}
                   onChange={(e) =>
@@ -287,6 +293,8 @@ export default function Sidebar({ onClose }) {
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-blue-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                 />
                 <input
+                  id="sidebar-filter-end"
+                  name="filterEnd"
                   type="date"
                   value={dateFilter.end || ""}
                   onChange={(e) =>

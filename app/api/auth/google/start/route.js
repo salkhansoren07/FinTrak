@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server.js";
 import {
   buildGoogleAuthUrl,
   createCodeVerifier,
   createOAuthState,
   hasGoogleOAuthConfig,
-} from "../../../../lib/googleOAuth";
+} from "../../../../lib/googleOAuth.js";
 import {
   applyOAuthFlowCookie,
   readSessionFromRequest,
-} from "../../../../lib/serverAuth";
+} from "../../../../lib/serverAuth.js";
+import { reportServerError } from "../../../../lib/observability.server.js";
 
 export async function GET(req) {
   try {
@@ -43,7 +44,12 @@ export async function GET(req) {
 
     return response;
   } catch (error) {
-    console.error("Google OAuth start failed:", error);
+    await reportServerError({
+      event: "auth.google_start.unexpected_error",
+      message: "Google OAuth start failed.",
+      error,
+      request: req,
+    });
     return NextResponse.redirect(
       new URL("/?authError=oauth_start_failed", req.url)
     );

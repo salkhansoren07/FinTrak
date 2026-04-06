@@ -10,6 +10,8 @@ export default function DateFilter() {
 
       {/* FILTER TYPE */}
       <select
+        id="date-filter-type"
+        name="filterType"
         value={dateFilter.type}
         onChange={(e) =>
           setDateFilter({ ...dateFilter, type: e.target.value })
@@ -24,6 +26,8 @@ export default function DateFilter() {
       {/* MONTH PICKER */}
       {dateFilter.type === "month" && (
         <input
+          id="date-filter-month"
+          name="filterMonth"
           type="month"
           value={dateFilter.month}
           onChange={(e) =>
@@ -37,6 +41,8 @@ export default function DateFilter() {
       {dateFilter.type === "custom" && (
         <>
           <input
+            id="date-filter-start"
+            name="filterStart"
             type="date"
             onChange={(e) =>
               setDateFilter({ ...dateFilter, start: e.target.value })
@@ -45,6 +51,8 @@ export default function DateFilter() {
           />
 
           <input
+            id="date-filter-end"
+            name="filterEnd"
             type="date"
             onChange={(e) =>
               setDateFilter({ ...dateFilter, end: e.target.value })

@@ -2,6 +2,10 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { clearAllPinVerifications } from "../lib/clientSession";
+import {
+  reportClientError,
+  reportClientWarning,
+} from "../lib/observability.client.js";
 
 const AuthContext = createContext();
 
@@ -40,14 +44,25 @@ export function AuthProvider({ children }) {
   const refreshSession = useCallback(async () => {
     try {
       const data = await fetchSession();
-      setUser(data?.authenticated ? data.user : null);
-      setGmailConnected(Boolean(data?.gmailConnected));
-      setHasPasscode(Boolean(data?.hasPasscode));
+      const isAuthenticated = Boolean(data?.authenticated && data?.user);
+
+      setUser(isAuthenticated ? data.user : null);
+      setGmailConnected(isAuthenticated && Boolean(data?.gmailConnected));
+      setHasPasscode(isAuthenticated && Boolean(data?.hasPasscode));
+
+      if (!isAuthenticated) {
+        clearAllPinVerifications();
+      }
     } catch (error) {
-      console.error("Failed to refresh auth session:", error);
+      reportClientError({
+        event: "auth.session_refresh.failed",
+        message: "Failed to refresh auth session on the client.",
+        error,
+      });
       setUser(null);
       setGmailConnected(false);
       setHasPasscode(false);
+      clearAllPinVerifications();
     } finally {
       setLoading(false);
     }
@@ -98,7 +113,11 @@ export function AuthProvider({ children }) {
         method: "POST",
       });
     } catch (error) {
-      console.error("Failed to clear auth session:", error);
+      reportClientWarning({
+        event: "auth.logout.request_failed",
+        message: "Failed to clear auth session on logout.",
+        error,
+      });
     } finally {
       setUser(null);
       setGmailConnected(false);

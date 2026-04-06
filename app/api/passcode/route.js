@@ -1,15 +1,19 @@
-import { NextResponse } from "next/server";
-import { verifyPassword, hashPassword } from "../../lib/passwords";
+import { NextResponse } from "next/server.js";
+import { verifyPassword, hashPassword } from "../../lib/passwords.js";
 import {
   clearPasscodeAttemptStateCookie,
   readSessionFromRequest,
-} from "../../lib/serverAuth";
-import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../lib/supabaseAdmin";
+} from "../../lib/serverAuth.js";
+import {
+  getSupabaseAdmin,
+  hasSupabaseAdminConfig,
+} from "../../lib/supabaseAdmin.js";
 import {
   clearFintrakUserPasscode,
   getFintrakUserById,
   updateFintrakUserPasscode,
-} from "../../lib/fintrakUsers";
+} from "../../lib/fintrakUsers.js";
+import { reportServerError } from "../../lib/observability.server.js";
 
 function getSessionUser(req) {
   const session = readSessionFromRequest(req);
@@ -53,7 +57,13 @@ export async function POST(req) {
     );
 
     if (error) {
-      console.error("Failed to save FinTrak passcode:", error);
+      await reportServerError({
+        event: "passcode.save.failed",
+        message: "Failed to save FinTrak passcode.",
+        error,
+        request: req,
+        context: { sessionUserId: session.id },
+      });
       return NextResponse.json(
         { error: "Could not save your passcode." },
         { status: 500 }
@@ -64,7 +74,12 @@ export async function POST(req) {
     clearPasscodeAttemptStateCookie(response);
     return response;
   } catch (error) {
-    console.error("Unexpected passcode save error:", error);
+    await reportServerError({
+      event: "passcode.save.unexpected_error",
+      message: "Unexpected passcode save error.",
+      error,
+      request: req,
+    });
     return NextResponse.json(
       { error: "Unexpected passcode save error." },
       { status: 500 }
@@ -104,7 +119,13 @@ export async function DELETE(req) {
 
     if (userError || !user) {
       if (userError) {
-        console.error("Failed to load FinTrak user for passcode reset:", userError);
+        await reportServerError({
+          event: "passcode.reset.user_lookup_failed",
+          message: "Failed to load FinTrak user for passcode reset.",
+          error: userError,
+          request: req,
+          context: { sessionUserId: session.id },
+        });
       }
       return NextResponse.json(
         { error: "Could not verify your account before resetting the passcode." },
@@ -123,7 +144,13 @@ export async function DELETE(req) {
     const { error } = await clearFintrakUserPasscode(supabase, session.id);
 
     if (error) {
-      console.error("Failed to clear FinTrak passcode:", error);
+      await reportServerError({
+        event: "passcode.reset.failed",
+        message: "Failed to clear FinTrak passcode.",
+        error,
+        request: req,
+        context: { sessionUserId: session.id },
+      });
       return NextResponse.json(
         { error: "Could not clear your passcode." },
         { status: 500 }
@@ -134,7 +161,12 @@ export async function DELETE(req) {
     clearPasscodeAttemptStateCookie(response);
     return response;
   } catch (error) {
-    console.error("Unexpected passcode clear error:", error);
+    await reportServerError({
+      event: "passcode.reset.unexpected_error",
+      message: "Unexpected passcode clear error.",
+      error,
+      request: req,
+    });
     return NextResponse.json(
       { error: "Unexpected passcode clear error." },
       { status: 500 }

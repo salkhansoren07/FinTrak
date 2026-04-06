@@ -1,10 +1,10 @@
-import { decryptSecretValue, encryptSecretValue } from "./serverSecrets";
-import { refreshGoogleAccessToken } from "./googleOAuth";
+import { decryptSecretValue, encryptSecretValue } from "./serverSecrets.js";
+import { refreshGoogleAccessToken } from "./googleOAuth.js";
 import {
   clearFintrakUserGmailConnection,
   getFintrakUserById,
   updateFintrakUserGmailConnection,
-} from "./fintrakUsers";
+} from "./fintrakUsers.js";
 
 function buildReconnectError(message) {
   const error = new Error(message);

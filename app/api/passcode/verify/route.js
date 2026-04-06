@@ -1,19 +1,23 @@
-import { NextResponse } from "next/server";
-import { verifyPassword } from "../../../lib/passwords";
-import { readSessionFromRequest } from "../../../lib/serverAuth";
-import { getSupabaseAdmin, hasSupabaseAdminConfig } from "../../../lib/supabaseAdmin";
-import { getFintrakUserById } from "../../../lib/fintrakUsers";
+import { NextResponse } from "next/server.js";
+import { verifyPassword } from "../../../lib/passwords.js";
+import { readSessionFromRequest } from "../../../lib/serverAuth.js";
+import {
+  getSupabaseAdmin,
+  hasSupabaseAdminConfig,
+} from "../../../lib/supabaseAdmin.js";
+import { getFintrakUserById } from "../../../lib/fintrakUsers.js";
 import {
   applyPasscodeAttemptStateCookie,
   clearPasscodeAttemptStateCookie,
   readPasscodeAttemptStateFromRequest,
-} from "../../../lib/serverAuth";
+} from "../../../lib/serverAuth.js";
 import {
   buildPasscodeAttemptCookiePayload,
   createPasscodeLockedMessage,
   isPasscodeLocked,
   registerFailedPasscodeAttempt,
 } from "../../../lib/passcodeSecurity.mjs";
+import { reportServerError } from "../../../lib/observability.server.js";
 
 export async function POST(req) {
   try {
@@ -57,7 +61,13 @@ export async function POST(req) {
 
     if (error || !user) {
       if (error) {
-        console.error("Failed to load user for passcode verify:", error);
+        await reportServerError({
+          event: "passcode.verify.user_lookup_failed",
+          message: "Failed to load user for passcode verification.",
+          error,
+          request: req,
+          context: { sessionUserId: session.id },
+        });
       }
       return NextResponse.json(
         { error: "Could not verify passcode." },
@@ -96,7 +106,12 @@ export async function POST(req) {
     clearPasscodeAttemptStateCookie(response);
     return response;
   } catch (error) {
-    console.error("Unexpected passcode verify error:", error);
+    await reportServerError({
+      event: "passcode.verify.unexpected_error",
+      message: "Unexpected passcode verify error.",
+      error,
+      request: req,
+    });
     return NextResponse.json(
       { error: "Unexpected passcode verify error." },
       { status: 500 }
