@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -27,7 +27,7 @@ import ExpenseChart from "./components/ExpenseChart";
 import { useTransactions } from "./context/TransactionContext";
 import BankSummary from "./components/BankSummary";
 import CategoryChart from "./components/CategoryChart";
-import PublicAuthCard from "./components/PublicAuthCard";
+import DashboardScreenshots from "./components/DashboardScreenshots";
 
 const SUPPORT_EMAIL = "support@fintrak.online";
 
@@ -58,26 +58,24 @@ const FEATURE_CARDS = [
   },
 ];
 
-const FAQS = [
+const TESTIMONIALS = [
   {
-    question: "Why does FinTrak need Gmail read-only access?",
-    answer:
-      "FinTrak reads transaction-related emails from banks and payment providers so it can extract amounts, dates, merchants, and account details to build your dashboard.",
+    name: "Aarav Mehta",
+    role: "Software engineer, Bengaluru",
+    quote:
+      "FinTrak helped me realize I was spending way too much on food delivery. Now I save ₹3,000 a month!",
   },
   {
-    question: "Can FinTrak send, delete, or modify my emails?",
-    answer:
-      "No. FinTrak requests Gmail read-only access only. It cannot send, edit, delete, or move messages in your inbox.",
+    name: "Priya Kumari",
+    role: "College student, Patna",
+    quote:
+      "Finally a simple app in Hindi that my parents can also use. The clean design makes it easy for everyone.",
   },
   {
-    question: "What do users see after connecting Gmail?",
-    answer:
-      "Users see transaction history, bank-wise summaries, category charts, and individual payment insights based on parsed transaction emails.",
-  },
-  {
-    question: "Is there a public support contact?",
-    answer:
-      "Yes. Users and reviewers can contact FinTrak support anytime at support@fintrak.online.",
+    name: "Rohan Verma",
+    role: "Small business owner, Lucknow",
+    quote:
+      "I used to write everything in a notebook. FinTrak gives me charts, spending categories, and monthly visibility in one place.",
   },
 ];
 
@@ -110,6 +108,28 @@ export default function Home() {
     useTransactions();
   const authErrorMessage =
     AUTH_ERROR_MESSAGES[searchParams.get("authError")] || "";
+  const dashboardStats = useMemo(() => {
+    const debitTransactions = filteredTransactions.filter(
+      (transaction) => transaction.type === "Debit"
+    );
+    const totalSpent = debitTransactions.reduce(
+      (sum, transaction) => sum + transaction.amount,
+      0
+    );
+    const activeBanks = new Set(
+      filteredTransactions.map((transaction) => transaction.bank)
+    ).size;
+    const activeCategories = new Set(
+      debitTransactions.map((transaction) => transaction.category)
+    ).size;
+
+    return {
+      totalSpent,
+      activeBanks,
+      activeCategories,
+      transactionCount: filteredTransactions.length,
+    };
+  }, [filteredTransactions]);
 
   if (authLoading) {
     return (
@@ -163,18 +183,18 @@ export default function Home() {
                 } grid-cols-2 gap-2 border-t border-slate-200/70 pt-3 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 sm:border-t-0 sm:pt-0`}
               >
                 <a
-                  href="#faq"
+                  href="#features"
                   onClick={() => setMobileMenuOpen(false)}
                   className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
-                  FAQs
+                  Features
                 </a>
                 <a
-                  href="#contact"
+                  href="#how-it-works"
                   onClick={() => setMobileMenuOpen(false)}
                   className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                 >
-                  Contact
+                  How it works
                 </a>
                 <Link
                   href="/privacy"
@@ -198,18 +218,19 @@ export default function Home() {
                   <LifeBuoy size={16} />
                   Support
                 </a>
-                <a
-                  href="#auth"
+                <Link
+                  href="/get-started"
                   onClick={() => setMobileMenuOpen(false)}
                   className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700 sm:col-span-1"
                 >
-                  Create Account
-                </a>
+                  Get Started
+                  <ArrowRight size={16} />
+                </Link>
               </nav>
             </div>
           </header>
 
-          <main className="flex-1 py-7 sm:py-10 lg:py-14">
+          <main className="flex flex-col items-center justify-center text-center py-7 sm:py-10 lg:py-14">
             <section className="grid items-center gap-6 sm:gap-8 lg:grid-cols-[1.15fr,0.85fr]">
               <div>
                 {authErrorMessage ? (
@@ -218,40 +239,37 @@ export default function Home() {
                   </div>
                 ) : null}
 
-                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200/70 bg-white/80 px-4 py-2 text-xs font-medium text-blue-700 shadow-sm sm:text-sm dark:border-blue-900/60 dark:bg-slate-900/70 dark:text-blue-300">
+                <div className="mx-auto mb-4 inline-flex gap-2 rounded-full border border-blue-200/70 bg-white/80 px-4 py-2 text-xs font-medium text-blue-700 shadow-sm sm:text-sm dark:border-blue-900/60 dark:bg-slate-900/70 dark:text-blue-300">
                   <Sparkles size={16} />
-                  Designed for effortless expense visibility
+                  Personal finance, simplified
                 </div>
 
-                <h1 className="max-w-3xl text-[2rem] font-black leading-[1.05] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl dark:text-white">
-                  Turn Gmail transaction alerts into a clear, organized money
-                  dashboard with{" "}
+                <h1 className="mx-auto max-w-3xl text-[2rem] font-black leading-[1.05] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl dark:text-white">
+                  Track every rupee,
+                  stress less{" "}
                   <span className="text-blue-600 dark:text-blue-400">
                     FinTrak
                   </span>
                 </h1>
 
-                <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:mt-6 sm:text-lg sm:leading-8 dark:text-slate-300">
-                  FinTrak detects transaction-related emails from banks and
-                  payment apps after a one-time Gmail connection, then turns
-                  them into clean summaries, charts, and categorized spending
-                  insights for the user.
+                <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:mt-6 sm:text-lg sm:leading-8 dark:text-slate-300">
+                  FinTrak helps you stay on top of your daily expenses, set budgets, and understand where your money goes — all in one clean place.
                 </p>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <a
-                    href="#auth"
+                <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                  <Link
+                    href="/get-started"
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-4 text-base font-semibold text-white shadow-xl transition hover:bg-blue-700"
                   >
-                    Create Account
+                    Start for free
                     <ArrowRight size={18} />
-                  </a>
+                  </Link>
                   <a
-                    href={`mailto:${SUPPORT_EMAIL}`}
+                    href="#features"
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-6 py-4 text-base font-semibold text-slate-700 transition hover:bg-white dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:bg-slate-900"
                   >
-                    <LifeBuoy size={18} />
-                    Contact Support
+                    <BarChart3 size={18} />
+                    Explore features
                   </a>
                 </div>
 
@@ -271,189 +289,240 @@ export default function Home() {
                 </div>
               </div>
 
-              <PublicAuthCard />
+                <DashboardScreenshots />
             </section>
 
-            <section className="mt-12 grid gap-4 sm:mt-16 sm:gap-5 md:grid-cols-2 xl:grid-cols-4">
-              {FEATURE_CARDS.map(({ icon: Icon, title, description }) => (
-                <div
-                  key={title}
-                  className="glass-card rounded-3xl p-5 shadow-xl sm:p-6"
-                >
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
-                    <Icon size={22} />
+          </main>
+
+            <h2 className="mt-16 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
+              Everything you need to manage money
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
+              Simple, powerful tools built for everyday Indians.
+            </p>
+
+
+              <section
+                id="features"
+                className="mt-12 grid gap-4 scroll-mt-28 sm:mt-16 sm:gap-5 md:grid-cols-2 xl:grid-cols-4"
+              >
+                {FEATURE_CARDS.map(({ icon: Icon, title, description }) => (
+                  <div
+                    key={title}
+                    className="glass-card rounded-3xl p-5 shadow-xl sm:p-6"
+                  >
+                    <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                      <Icon size={22} />
+                    </div>
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                      {title}
+                    </h2>
+                    <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                      {description}
+                    </p>
                   </div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    {title}
+                ))}
+              </section>
+          
+
+                   {/*<section
+                id="auth"
+                className="mt-12 grid gap-6 rounded-[2rem] border border-slate-200/80 bg-[linear-gradient(180deg,_rgba(255,255,255,0.94)_0%,_rgba(239,246,255,0.92)_100%)] p-6 shadow-[0_24px_70px_-36px_rgba(59,130,246,0.35)] dark:border-slate-800/80 dark:bg-[linear-gradient(180deg,_rgba(15,23,42,0.9)_0%,_rgba(8,18,37,0.9)_100%)] sm:mt-16 sm:p-8 lg:grid-cols-[0.9fr,1.1fr]"
+              >
+                <div className="text-left">
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600 dark:text-blue-300">
+                    Get started
+                  </p>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
+                    Create your account after seeing how the dashboard works
                   </h2>
-                  <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                    {description}
+                  <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                    The hero section now showcases the product first, but account access still stays right here on the homepage. Sign up, set your passcode, and connect Gmail when you are ready.
                   </p>
                 </div>
-              ))}
-            </section>
 
-            <section className="mt-12 grid gap-6 sm:mt-16 sm:gap-8 lg:grid-cols-[0.95fr,1.05fr]">
-              <div className="glass-card rounded-3xl p-6 shadow-xl sm:p-8">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600 dark:text-blue-300">
-                  How it works
-                </p>
-                <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
-                  A simple flow from Gmail to financial clarity
-                </h2>
-                <div className="mt-8 space-y-6">
+                <PublicAuthCard />
+              </section>*/}
+
+              <section
+                id="how-it-works"
+                className="mt-12 grid gap-6 scroll-mt-28 sm:mt-16 sm:gap-8 lg:grid-cols-[0.8fr,1.2fr]"
+              >
+                <div className="glass-card rounded-3xl p-6 text-left shadow-xl sm:p-8">
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600 dark:text-blue-300">
+                    How it works
+                  </p>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
+                    Up and running in 3 steps
+                  </h2>
+                  <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                    FinTrak is designed to feel lightweight from day one. Create your account, bring in your spending data, and start reviewing patterns without manual spreadsheet work.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
                   {[
                     [
-                      "1. Connect Gmail",
-                      "The user signs in through Google and grants Gmail read-only access.",
+                      "1",
+                      "Create your account",
+                      "Sign up free with just your name and email. No credit card needed.",
                     ],
                     [
-                      "2. FinTrak identifies transaction emails",
-                      "The app looks for relevant bank and payment transaction messages only.",
+                      "2",
+                      "Connect your data",
+                      "Securely connect Gmail and let FinTrak detect transaction emails and organize them automatically.",
                     ],
                     [
-                      "3. Insights appear automatically",
-                      "Parsed transactions power charts, bank summaries, categories, and detailed records.",
+                      "3",
+                      "Review your insights",
+                      "See budgets, category trends, and clear summaries that show how your money moves.",
                     ],
-                  ].map(([title, description]) => (
-                    <div key={title} className="flex gap-3 sm:gap-4">
-                      <div className="mt-1 h-3 w-3 shrink-0 rounded-full bg-blue-500" />
-                      <div>
-                        <h3 className="font-semibold text-slate-900 dark:text-white">
-                          {title}
-                        </h3>
-                        <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                          {description}
+                  ].map(([number, title, description]) => (
+                    <div
+                      key={title}
+                      className="glass-card rounded-3xl p-6 text-left shadow-xl sm:p-7"
+                    >
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-500 text-sm font-semibold text-slate-100">
+                        {number}
+                      </div>
+                      <h3 className="mt-5 font-semibold text-slate-900 dark:text-white">
+                        {title}
+                      </h3>
+                      <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                        {description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="mt-12 sm:mt-16">
+                <div className="mb-8">
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600 dark:text-blue-300">
+                    Testimonials
+                  </p>
+                  <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
+                    People love FinTrak
+                  </h2>
+                  <p className="mx-auto mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                    From students to working professionals — everyone keeps track.
+                  </p>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-3">
+                  {TESTIMONIALS.map(({ name, role, quote }) => (
+                    <div
+                      key={name}
+                      className="glass-card rounded-[2rem] p-6 text-left shadow-xl"
+                    >
+                      <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-lg font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                        {name.charAt(0)}
+                      </div>
+                      <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                        &ldquo;{quote}&rdquo;
+                      </p>
+                      <div className="mt-6">
+                        <p className="font-semibold text-slate-900 dark:text-white">
+                          {name}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                          {role}
                         </p>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
 
-              <div
-                id="faq"
-                className="glass-card rounded-3xl p-6 shadow-xl sm:p-8"
+              <section
+                id="contact"
+                className="mt-12 rounded-[1.75rem] bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 p-6 text-white shadow-2xl sm:mt-16 sm:rounded-[2rem] sm:p-10"
               >
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600 dark:text-blue-300">
-                  FAQs
-                </p>
-                <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
-                  Questions reviewers and users often ask
-                </h2>
-                <div className="mt-8 space-y-4">
-                  {FAQS.map(({ question, answer }) => (
-                    <details
-                      key={question}
-                      className="group rounded-2xl border border-slate-200 bg-white/70 p-4 transition sm:p-5 dark:border-slate-800 dark:bg-slate-950/30"
-                    >
-                      <summary className="cursor-pointer list-none font-semibold text-slate-900 dark:text-white">
-                        <div className="flex items-center justify-between gap-4">
-                          <span>{question}</span>
-                          <span className="text-blue-600 transition group-open:rotate-45 dark:text-blue-300">
-                            +
-                          </span>
-                        </div>
-                      </summary>
-                      <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                        {answer}
-                      </p>
-                    </details>
-                  ))}
-                </div>
-              </div>
-            </section>
+                <div className="grid gap-8 lg:grid-cols-[1.1fr,0.9fr] lg:items-center">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-100">
+                      Contact and support
+                    </p>
+                    <h2 className="mt-3 text-2xl font-bold sm:text-3xl">
+                      Need help, verification details, or product support?
+                    </h2>
+                    <p className="mt-4 max-w-2xl text-base leading-8 text-blue-100">
+                      Reach the FinTrak team directly for product questions,
+                      verification support, or account-related issues.
+                    </p>
+                  </div>
 
-            <section
-              id="contact"
-              className="mt-12 rounded-[1.75rem] bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 p-6 text-white shadow-2xl sm:mt-16 sm:rounded-[2rem] sm:p-10"
-            >
-              <div className="grid gap-8 lg:grid-cols-[1.1fr,0.9fr] lg:items-center">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-100">
-                    Contact and support
-                  </p>
-                  <h2 className="mt-3 text-2xl font-bold sm:text-3xl">
-                    Need help, verification details, or product support?
-                  </h2>
-                  <p className="mt-4 max-w-2xl text-base leading-8 text-blue-100">
-                    Reach the FinTrak team directly for product questions,
-                    verification support, or account-related issues.
-                  </p>
-                </div>
-
-                <div className="rounded-3xl bg-white/12 p-5 backdrop-blur-sm sm:p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
-                      <Mail size={22} />
+                  <div className="rounded-3xl bg-white/12 p-5 backdrop-blur-sm sm:p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+                        <Mail size={22} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-blue-100">Support email</p>
+                        <a
+                          href={`mailto:${SUPPORT_EMAIL}`}
+                          className="mt-1 block break-all text-xl font-semibold text-white underline-offset-4 hover:underline"
+                        >
+                          {SUPPORT_EMAIL}
+                        </a>
+                        <p className="mt-3 text-sm leading-7 text-blue-100">
+                          Users and reviewers can contact FinTrak here for
+                          product, policy, or verification-related queries.
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-blue-100">Support email</p>
+
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                       <a
                         href={`mailto:${SUPPORT_EMAIL}`}
-                        className="mt-1 block break-all text-xl font-semibold text-white underline-offset-4 hover:underline"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 font-semibold text-blue-700 transition hover:bg-blue-50"
                       >
-                        {SUPPORT_EMAIL}
+                        <LifeBuoy size={18} />
+                        Email Support
                       </a>
-                      <p className="mt-3 text-sm leading-7 text-blue-100">
-                        Users and reviewers can contact FinTrak here for
-                        product, policy, or verification-related queries.
-                      </p>
+                      <Link
+                        href="/get-started"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/25 px-5 py-3 font-semibold text-white transition hover:bg-white/10"
+                      >
+                        Get Started
+                      </Link>
                     </div>
                   </div>
+                </div>
+              </section>
 
-                  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                    <a
-                      href={`mailto:${SUPPORT_EMAIL}`}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 font-semibold text-blue-700 transition hover:bg-blue-50"
-                    >
-                      <LifeBuoy size={18} />
-                      Email Support
-                    </a>
-                    <button
-                      onClick={() => connectGmail({ forceConsent: true })}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/25 px-5 py-3 font-semibold text-white transition hover:bg-white/10"
-                    >
-                      Connect Gmail
-                    </button>
-                  </div>
+            <footer className="border-t border-slate-200/70 px-2 py-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                  FinTrak helps users review transaction-related Gmail messages as
+                  financial insights.
+                </p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <Link
+                    href="/privacy"
+                    className="transition hover:text-blue-600 dark:hover:text-blue-300"
+                  >
+                    Privacy
+                  </Link>
+                  <Link
+                    href="/terms"
+                    className="transition hover:text-blue-600 dark:hover:text-blue-300"
+                  >
+                    Terms
+                  </Link>
+                  <a
+                    href={`mailto:${SUPPORT_EMAIL}`}
+                    className="transition hover:text-blue-600 dark:hover:text-blue-300"
+                  >
+                    {SUPPORT_EMAIL}
+                  </a>
                 </div>
               </div>
-            </section>
-          </main>
-
-          <footer className="border-t border-slate-200/70 px-2 py-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <p>
-                FinTrak helps users review transaction-related Gmail messages as
-                financial insights.
-              </p>
-              <div className="flex flex-wrap items-center gap-4">
-                <Link
-                  href="/privacy"
-                  className="transition hover:text-blue-600 dark:hover:text-blue-300"
-                >
-                  Privacy
-                </Link>
-                <Link
-                  href="/terms"
-                  className="transition hover:text-blue-600 dark:hover:text-blue-300"
-                >
-                  Terms
-                </Link>
-                <a
-                  href={`mailto:${SUPPORT_EMAIL}`}
-                  className="transition hover:text-blue-600 dark:hover:text-blue-300"
-                >
-                  {SUPPORT_EMAIL}
-                </a>
-              </div>
-            </div>
-          </footer>
+            </footer>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
 
   // DASHBOARD
@@ -478,6 +547,7 @@ export default function Home() {
               {syncWarning}
             </div>
           ) : null}
+          
           <SummaryCards transactions={filteredTransactions} />
           <BankSummary transactions={filteredTransactions} />
 
@@ -496,5 +566,25 @@ export default function Home() {
         </div>
       )}
     </Layout>
+  );
+}
+
+function DashboardMiniCard({ label, value, icon: Icon }) {
+  return (
+    <div className="rounded-[26px] border border-white/70 bg-white/80 p-4 shadow-[0_14px_40px_-30px_rgba(15,23,42,0.45)] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/60">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            {label}
+          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+            {value}
+          </p>
+        </div>
+        <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
+          <Icon size={18} />
+        </span>
+      </div>
+    </div>
   );
 }

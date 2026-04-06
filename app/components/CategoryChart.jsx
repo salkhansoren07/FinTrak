@@ -31,17 +31,27 @@ export default function CategoryChart({ transactions = [] }) {
     .slice(0, 6);
 
   return (
-    <div className="bg-white dark:bg-gray-900 p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-xl">
-      <h3 className="font-semibold text-slate-400 mb-4">
-        Spending by Category
-      </h3>
+    <div className="rounded-[32px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_20px_60px_-34px_rgba(15,23,42,0.45)] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/70 md:p-6">
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            Categories
+          </p>
+          <h3 className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
+            Spending by category
+          </h3>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Top debit categories in the current view
+        </p>
+      </div>
 
       {data.length === 0 ? (
         <div className="flex h-[240px] items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-400 dark:border-slate-700">
           No category spending yet
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={240}>
+        <ResponsiveContainer width="100%" height={270}>
           <BarChart
             data={data}
             layout="vertical"

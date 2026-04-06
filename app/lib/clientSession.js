@@ -1,6 +1,7 @@
 "use client";
 
 const PUBLIC_ROUTES = new Set(["/", "/privacy", "/terms"]);
+const AUTH_FLOW_ROUTES = new Set(["/get-started"]);
 
 function buildPinVerifiedKey(userId) {
   return userId ? `pin_verified:${userId}` : null;
@@ -11,7 +12,11 @@ export function isSessionSetupRoute(pathname) {
 }
 
 export function isProtectedAppRoute(pathname) {
-  return !isSessionSetupRoute(pathname) && !PUBLIC_ROUTES.has(pathname);
+  return (
+    !isSessionSetupRoute(pathname) &&
+    !PUBLIC_ROUTES.has(pathname) &&
+    !AUTH_FLOW_ROUTES.has(pathname)
+  );
 }
 
 export function readClientSession(userId = null, hasPasscode = false) {
@@ -70,7 +75,13 @@ export function getSessionRedirect(
   hasPasscode = false
 ) {
   if (!isAuthenticated) {
-    return PUBLIC_ROUTES.has(pathname) ? null : "/";
+    return PUBLIC_ROUTES.has(pathname) || AUTH_FLOW_ROUTES.has(pathname)
+      ? null
+      : "/";
+  }
+
+  if (AUTH_FLOW_ROUTES.has(pathname)) {
+    return null;
   }
 
   const { hasPin, isVerified } = readClientSession(userId, hasPasscode);

@@ -12,27 +12,72 @@ export default function BankSummary({ transactions = [] }) {
     return acc;
   }, {});
 
+  const bankRows = Object.entries(banks)
+    .map(([bank, data]) => ({
+      bank,
+      ...data,
+      total: data.debit + data.credit,
+    }))
+    .sort((a, b) => b.total - a.total);
+
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-6 md:mt-8">
-      {Object.entries(banks).map(([bank, data]) => (
-        <Link
-          key={bank}
-          href={`/bank/${encodeURIComponent(bank)}`}
-          className="block bg-white dark:bg-gray-900 p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-xl hover:scale-[1.02] transition"
-        >
-          <h3 className="font-semibold mb-2 md:mb-3 text-blue-500 break-words">
-            {bank}
+    <section className="mt-8 rounded-[32px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_20px_60px_-34px_rgba(15,23,42,0.45)] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/70 md:p-6">
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            Bank Overview
+          </p>
+          <h3 className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+            Where your transaction flow is concentrated
           </h3>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Ranked by total money movement in the current filter.
+        </p>
+      </div>
 
-          <p className="text-rose-500 font-bold text-sm md:text-base">
-            Debit: ₹ {data.debit.toLocaleString("en-IN")}
-          </p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {bankRows.map((entry, index) => (
+          <Link
+            key={entry.bank}
+            href={`/bank/${encodeURIComponent(entry.bank)}`}
+            className="group rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)] p-5 shadow-[0_16px_40px_-28px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:border-blue-200 dark:border-slate-800 dark:bg-[linear-gradient(180deg,_#0f172a_0%,_#081225_100%)] dark:hover:border-blue-900/50"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+                  Bank {String(index + 1).padStart(2, "0")}
+                </p>
+                <h4 className="mt-2 break-words text-lg font-semibold text-slate-900 dark:text-white">
+                  {entry.bank}
+                </h4>
+              </div>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+                ₹ {entry.total.toLocaleString("en-IN")}
+              </span>
+            </div>
 
-          <p className="text-emerald-500 font-bold text-sm md:text-base mt-1">
-            Credit: ₹ {data.credit.toLocaleString("en-IN")}
-          </p>
-        </Link>
-      ))}
-    </div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-rose-50 px-4 py-3 dark:bg-rose-950/20">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-500">
+                  Debit
+                </p>
+                <p className="mt-2 text-base font-bold text-rose-600 dark:text-rose-300">
+                  ₹ {entry.debit.toLocaleString("en-IN")}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-emerald-50 px-4 py-3 dark:bg-emerald-950/20">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-500">
+                  Credit
+                </p>
+                <p className="mt-2 text-base font-bold text-emerald-600 dark:text-emerald-300">
+                  ₹ {entry.credit.toLocaleString("en-IN")}
+                </p>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }

@@ -1,4 +1,5 @@
 "use client";
+
 import { saveCloudUserData } from "../lib/userDataClient";
 import {
   readCategoryOverrides,
@@ -17,7 +18,7 @@ export default function TransactionTable({ transactions = [] }) {
 
     writeCategoryOverrides(user?.id, existing);
 
-      try {
+    try {
       await saveCloudUserData({ categoryOverrides: existing });
     } catch (error) {
       console.warn("Cloud sync write failed:", error);
@@ -27,20 +28,42 @@ export default function TransactionTable({ transactions = [] }) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl md:rounded-4xl shadow-xl overflow-hidden mt-8">
-      <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+    <section className="mt-8 overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/90 shadow-[0_20px_60px_-34px_rgba(15,23,42,0.45)] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/70">
+      <div className="border-b border-slate-200/80 px-5 py-5 dark:border-slate-800/80 md:px-6">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+              Transactions
+            </p>
+            <h3 className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
+              Detailed transaction review
+            </h3>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {transactions.length} entries with editable categories
+          </p>
+        </div>
+      </div>
+
+      <div className="divide-y divide-slate-100 dark:divide-slate-800 md:hidden">
         {transactions.map((t) => (
-          <div key={t.id} className="p-4 space-y-3">
-            <div className="flex items-start justify-between gap-2">
+          <div key={t.id} className="space-y-4 px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-semibold text-slate-700 dark:text-slate-200 truncate">
+                <p className="truncate text-base font-semibold text-slate-800 dark:text-slate-100">
                   {t.bank}
                 </p>
-                <p className="text-xs text-slate-400">{t.dateLabel}</p>
+                <p className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-400">
+                  {t.dateLabel}
+                </p>
               </div>
               <p
-                className={`font-bold text-sm ${
+                className={`rounded-full px-3 py-1 text-sm font-bold ${
                   t.type === "Debit" ? "text-rose-500" : "text-emerald-500"
+                } ${
+                  t.type === "Debit"
+                    ? "bg-rose-50 dark:bg-rose-950/20"
+                    : "bg-emerald-50 dark:bg-emerald-950/20"
                 }`}
               >
                 {t.type === "Debit" ? "-" : "+"} ₹{t.amount}
@@ -51,7 +74,7 @@ export default function TransactionTable({ transactions = [] }) {
               <select
                 value={t.category}
                 onChange={(e) => updateCategory(t.id, e.target.value)}
-                className="bg-transparent border rounded-lg px-2 py-1 text-sm text-slate-600 dark:text-slate-300 max-w-[50%]"
+                className="max-w-[52%] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
               >
                 {DEFAULT_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -60,7 +83,7 @@ export default function TransactionTable({ transactions = [] }) {
                 ))}
               </select>
 
-              <p className="font-mono text-xs text-slate-400 truncate text-right">
+              <p className="truncate rounded-xl bg-slate-100 px-3 py-2 text-right font-mono text-xs text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                 {t.vpa}
               </p>
             </div>
@@ -70,7 +93,7 @@ export default function TransactionTable({ transactions = [] }) {
 
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 dark:bg-gray-800/50 text-slate-400">
+          <thead className="bg-slate-50/80 text-slate-500 dark:bg-slate-900/60 dark:text-slate-400">
             <tr>
               <th className="p-6 text-xs uppercase">Bank</th>
               <th className="p-6 text-xs uppercase">Date</th>
@@ -82,14 +105,21 @@ export default function TransactionTable({ transactions = [] }) {
 
           <tbody>
             {transactions.map((t) => (
-              <tr key={t.id} className="border-t">
-                <td className="p-6 text-slate-300">{t.bank}</td>
-                <td className="p-6 text-slate-400">{t.dateLabel}</td>
+              <tr
+                key={t.id}
+                className="border-t border-slate-200/70 transition hover:bg-slate-50/80 dark:border-slate-800/80 dark:hover:bg-slate-900/40"
+              >
+                <td className="p-6 font-semibold text-slate-800 dark:text-slate-100">
+                  {t.bank}
+                </td>
+                <td className="p-6 text-slate-500 dark:text-slate-400">
+                  {t.dateLabel}
+                </td>
                 <td className="p-6">
                   <select
                     value={t.category}
                     onChange={(e) => updateCategory(t.id, e.target.value)}
-                    className="bg-transparent border rounded-lg px-2 py-1 text-slate-300"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                   >
                     {DEFAULT_CATEGORIES.map((c) => (
                       <option key={c} value={c}>
@@ -99,7 +129,7 @@ export default function TransactionTable({ transactions = [] }) {
                   </select>
                 </td>
 
-                <td className="p-6 font-mono truncate max-w-xs text-slate-300">
+                <td className="max-w-xs truncate p-6 font-mono text-slate-500 dark:text-slate-400">
                   {t.vpa}
                 </td>
 
@@ -115,6 +145,6 @@ export default function TransactionTable({ transactions = [] }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   );
 }

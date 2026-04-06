@@ -1,21 +1,22 @@
-import {
-  LayoutDashboard,
-  BookUser,
-  CreditCard,
-  LogOut,
-  Calendar,
-  ListRestart,
-  PiggyBank,
-  UserRound,
-} from "lucide-react";
-
-import { useAuth } from "../context/AuthContext";
-import { useTransactions } from "../context/TransactionContext";
 import Link from "next/link";
 import Image from "next/image";
-
-const navItemClasses =
-  "flex items-center gap-3 rounded-lg p-2 text-gray-700 transition-all hover:text-blue-500 dark:text-gray-300";
+import { usePathname } from "next/navigation";
+import {
+  BookUser,
+  Calendar,
+  ChevronRight,
+  CreditCard,
+  LayoutDashboard,
+  ListRestart,
+  LogOut,
+  PiggyBank,
+  SlidersHorizontal,
+  Sparkles,
+  UserRound,
+  X,
+} from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { useTransactions } from "../context/TransactionContext";
 
 function formatMonthLocal(date) {
   const year = date.getFullYear();
@@ -30,13 +31,122 @@ function formatDateLocal(date) {
   return `${year}-${month}-${day}`;
 }
 
+function describeDateFilter(dateFilter) {
+  if (dateFilter.type === "all") {
+    return "All transactions";
+  }
+
+  if (dateFilter.type === "custom") {
+    if (dateFilter.start && dateFilter.end) {
+      return `${dateFilter.start} to ${dateFilter.end}`;
+    }
+    return "Custom range";
+  }
+
+  if (dateFilter.month) {
+    return dateFilter.month;
+  }
+
+  return "This month";
+}
+
+function SectionCard({ title, icon: Icon, children }) {
+  return (
+    <section className="rounded-[28px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.5)] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/70">
+      <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+        <Icon size={14} />
+        {title}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function NavLink({ href, icon: Icon, label, active, onClick }) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`group flex items-center justify-between rounded-2xl px-3 py-3 transition-all ${
+        active
+          ? "bg-linear-to-r from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20"
+          : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white"
+      }`}
+    >
+      <span className="flex items-center gap-3">
+        <span
+          className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${
+            active
+              ? "bg-white/15"
+              : "bg-slate-100 text-slate-600 group-hover:bg-white dark:bg-slate-900 dark:text-slate-300 dark:group-hover:bg-slate-800"
+          }`}
+        >
+          <Icon size={18} />
+        </span>
+        <span className="text-sm font-semibold">{label}</span>
+      </span>
+      <ChevronRight
+        size={16}
+        className={
+          active
+            ? "opacity-100"
+            : "opacity-0 transition-opacity group-hover:opacity-100"
+        }
+      />
+    </Link>
+  );
+}
+
+function PresetButton({ children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-900/60 dark:hover:bg-blue-950/30 dark:hover:text-blue-300"
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function Sidebar({ onClose }) {
   const { logout } = useAuth();
   const { dateFilter, setDateFilter } = useTransactions();
+  const pathname = usePathname();
 
   const now = new Date();
-
-  // ---------- QUICK PRESETS ----------
+  const navItems = [
+    {
+      href: "/",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      active: pathname === "/",
+    },
+    {
+      href: "/#transactions",
+      label: "Transactions",
+      icon: CreditCard,
+      active: pathname === "/",
+    },
+    {
+      href: "/individual",
+      label: "Individual",
+      icon: BookUser,
+      active: pathname.startsWith("/individual"),
+    },
+    {
+      href: "/budget",
+      label: "Budget Tracking",
+      icon: PiggyBank,
+      active: pathname.startsWith("/budget"),
+    },
+    {
+      href: "/profile",
+      label: "Profile",
+      icon: UserRound,
+      active: pathname.startsWith("/profile"),
+    },
+  ];
 
   const setThisMonth = () => {
     setDateFilter({
@@ -76,209 +186,145 @@ export default function Sidebar({ onClose }) {
   };
 
   return (
-    <div className="w-64 md:w-64 h-full md:h-screen flex-1 overflow-y-auto pr-1 bg-white dark:bg-gray-900 shadow-xl p-5 md:p-6 flex flex-col">
-
-      {/* TOP SECTION */}
-      <div>
-
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/fintrak-logo.png"
-              alt="FinTrak logo"
-              width={44}
-              height={44}
-              className="h-11 w-11 rounded-xl object-cover shadow-md"
-              priority
-            />
-            <div>
-              <h1 className="text-xl font-bold text-blue-600 leading-none">
-                FinTrak
-              </h1>
-              <p className="mt-1 text-xs text-slate-400">
-                Smart expense tracking
-              </p>
+    <aside className="flex h-full flex-1 flex-col overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_38%),linear-gradient(180deg,_#f8fbff_0%,_#eef5ff_45%,_#f8fafc_100%)] p-4 text-slate-900 shadow-2xl dark:bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_30%),linear-gradient(180deg,_#020617_0%,_#081225_50%,_#020617_100%)] dark:text-slate-100 md:w-72 md:p-5">
+      <div className="flex flex-1 flex-col gap-4">
+        <div className="rounded-[32px] border border-white/60 bg-white/85 p-4 shadow-[0_24px_60px_-30px_rgba(59,130,246,0.45)] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/75">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/fintrak-logo.png"
+                alt="FinTrak logo"
+                width={52}
+                height={52}
+                className="h-[52px] w-[52px] rounded-2xl object-cover shadow-md"
+                priority
+              />
+              <div>
+                <h1 className="text-xl font-bold leading-none text-slate-100">
+                  FinTrak
+                </h1>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Smart expense tracking
+                </p>
+              </div>
             </div>
+            {onClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white md:hidden"
+                aria-label="Close menu"
+              >
+                <X size={18} />
+              </button>
+            ) : null}
           </div>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="md:hidden text-sm px-2 py-1 rounded border border-slate-200 dark:border-slate-700"
-            >
-              Close
-            </button>
-          )}
+
+          
         </div>
 
-        {/* MAIN NAV */}
-        <nav className="space-y-4">
-          <Link
-            href="/"
-            onClick={onClose}
-            className={navItemClasses}
-          >
-            <LayoutDashboard size={18} />
-            Dashboard
-          </Link>
-  
-          <Link
-            href="/#transactions"
-            onClick={onClose}
-            className={navItemClasses}
-          >
-            <CreditCard size={18} />
-            Transactions
-          </Link>
-
-          <Link
-            href="/individual"
-            onClick={onClose}
-            className={navItemClasses}
-          >
-            <BookUser size={18} />
-            Individual
-          </Link>
-
-          <Link
-            href="/budget"
-            onClick={onClose}
-            className={navItemClasses}
-          >
-            <PiggyBank size={18} />
-            Budget Tracking
-          </Link>
-
-          <Link
-            href="/profile"
-            onClick={onClose}
-            className={navItemClasses}
-          >
-            <UserRound size={18} />
-            Profile
-          </Link>
-
-
-        </nav>
-
-        {/* DATE FILTER SECTION */}
-        <div className="mt-7">
-
-          <div className="flex items-center gap-2 mb-3 text-slate-300 text-[15px] uppercase">
-            <Calendar size={15} />
-            Date Filter
-          </div>
-
-          {/* FILTER TYPE */}
-          <div className="px-2">
-          <select
-            value={dateFilter.type}
-            onChange={(e) =>
-              setDateFilter({ ...dateFilter, type: e.target.value })
-            }
-            className="w-full mt-2 mb-3 border rounded-lg px-2 py-2 text-slate-400 bg-white dark:bg-gray-900"
-          >
-            <option value="month">Month</option>
-            <option value="custom">Custom Range</option>
-            <option value="all">All Time</option>
-          </select>
-          </div>
-
-          {/* MONTH PICKER */}
-          <div className="px-2">
-          {dateFilter.type === "month" && (
-            <input
-              type="month"
-              value={dateFilter.month || ""}
-              onChange={(e) =>
-                setDateFilter({ ...dateFilter, month: e.target.value })
-              }
-              className="w-full mb-3 border rounded-lg px-2 py-1 text-slate-400 bg-white dark:bg-gray-900"
-            />
-          )}
-          </div>  
-
-          {/* CUSTOM RANGE */}
-          {dateFilter.type === "custom" && (
-            <div className="space-y-2 mb-3">
-              <input
-                type="date"
-                value={dateFilter.start || ""}
-                onChange={(e) =>
-                  setDateFilter({ ...dateFilter, start: e.target.value })
-                }
-                className="w-full border rounded-lg px-2 py-2 text-slate-400 bg-white dark:bg-gray-900"
+        <SectionCard title="Navigation" icon={LayoutDashboard}>
+          <nav className="space-y-2">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+                active={item.active}
+                onClick={onClose}
               />
+            ))}
+          </nav>
+        </SectionCard>
 
-              <input
-                type="date"
-                value={dateFilter.end || ""}
+        <SectionCard title="Date Filter" icon={Calendar}>
+          <div className="rounded-2xl bg-slate-100 px-3 py-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+              Active View
+            </p>
+            <p className="mt-1 font-semibold">{describeDateFilter(dateFilter)}</p>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+                <SlidersHorizontal size={13} />
+                Filter Type
+              </span>
+              <select
+                value={dateFilter.type}
                 onChange={(e) =>
-                  setDateFilter({ ...dateFilter, end: e.target.value })
+                  setDateFilter({ ...dateFilter, type: e.target.value })
                 }
-                className="w-full border rounded-lg px-2 py-2 text-slate-400 bg-white dark:bg-gray-900"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-blue-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <option value="month">Month</option>
+                <option value="custom">Custom Range</option>
+                <option value="all">All Time</option>
+              </select>
+            </label>
+
+            {dateFilter.type === "month" ? (
+              <input
+                type="month"
+                value={dateFilter.month || ""}
+                onChange={(e) =>
+                  setDateFilter({ ...dateFilter, month: e.target.value })
+                }
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-blue-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
               />
-            </div>
-          )}
+            ) : null}
 
-          {/* QUICK PRESETS */}
-          <div className="flex items-center gap-2 mb-3 text-slate-300 mt-2 text-[15px] uppercase">
-            <ListRestart size={15} />
-            Quick Presets
+            {dateFilter.type === "custom" ? (
+              <div className="grid gap-3">
+                <input
+                  type="date"
+                  value={dateFilter.start || ""}
+                  onChange={(e) =>
+                    setDateFilter({ ...dateFilter, start: e.target.value })
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-blue-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                />
+                <input
+                  type="date"
+                  value={dateFilter.end || ""}
+                  onChange={(e) =>
+                    setDateFilter({ ...dateFilter, end: e.target.value })
+                  }
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-blue-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                />
+              </div>
+            ) : null}
           </div>
-  
-          <div className="space-y-2 px-2 text-sm">
+        </SectionCard>
 
-            <button
-              onClick={setThisMonth}
-              className="w-full text-left p-2 cursor-pointer rounded-lg text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-            >
-              This Month
-            </button>
-
-            <button
-              onClick={setLastMonth}
-              className="w-full text-left cursor-pointer p-2 text-slate-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
-            >
-              Last Month
-            </button>
-
-            <button
-              onClick={setLast3Months}
-              className="w-full text-left p-2 cursor-pointer text-slate-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
-            >
-              Last 3 Months
-            </button>
-
-            <button
-              onClick={setThisYear}
-              className="w-full text-left p-2 cursor-pointer text-slate-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
-            >
-              This Year
-            </button>
-
-            <button
-              onClick={setAllTime}
-              className="w-full text-left p-2 cursor-pointer text-slate-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
-            >
-              All Time
-            </button>
-
+        <SectionCard title="Quick Presets" icon={ListRestart}>
+          <div className="grid grid-cols-1 gap-2">
+            <PresetButton onClick={setThisMonth}>This Month</PresetButton>
+            <PresetButton onClick={setLastMonth}>Last Month</PresetButton>
+            <PresetButton onClick={setLast3Months}>Last 3 Months</PresetButton>
+            <PresetButton onClick={setThisYear}>This Year</PresetButton>
+            <PresetButton onClick={setAllTime}>All Time</PresetButton>
           </div>
-        </div>
-
+        </SectionCard>
       </div>
 
-      {/* LOGOUT */}
-      <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
+      <div className="mt-4 rounded-[28px] border border-slate-200/80 bg-white/90 p-3 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.5)] backdrop-blur dark:border-slate-800/80 dark:bg-slate-950/70">
         <button
+          type="button"
           onClick={logout}
-          className="flex items-center gap-3 w-full text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 p-2 rounded-xl transition-all font-medium"
+          className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-sm font-semibold text-slate-600 transition hover:bg-rose-50 hover:text-rose-600 dark:text-slate-300 dark:hover:bg-rose-950/20 dark:hover:text-rose-300"
         >
-          <LogOut size={18} />
-          Sign Out
+          <span className="flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-900">
+              <LogOut size={18} />
+            </span>
+            Sign Out
+          </span>
+          <ChevronRight size={16} />
         </button>
       </div>
-    </div>
+    </aside>
   );
 }
