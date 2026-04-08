@@ -466,6 +466,15 @@ function LoginFields({
         }
       />
 
+      <div className="flex justify-end">
+        <Link
+          href="/forgot-password"
+          className="text-sm font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+        >
+          Forgot password?
+        </Link>
+      </div>
+
       <button
         type="button"
         disabled={isPending}

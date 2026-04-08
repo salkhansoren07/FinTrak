@@ -29,6 +29,13 @@ function getPageMeta(pathname) {
     };
   }
 
+  if (pathname.startsWith("/admin/testimonials")) {
+    return {
+      title: "Testimonial Moderation",
+      subtitle: "Review, approve, reject, and feature user feedback.",
+    };
+  }
+
   if (pathname.startsWith("/bank")) {
     return {
       title: "Bank Breakdown",

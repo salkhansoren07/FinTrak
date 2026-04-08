@@ -119,6 +119,7 @@ export async function POST(req) {
         id: user.id,
         username: user.username,
         email: user.email,
+        isAdmin: Boolean(user.isAdmin),
       },
       gmailConnected: user.gmailConnected,
       hasPasscode: Boolean(user.hasPasscode),

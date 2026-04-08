@@ -20,6 +20,7 @@ import { getFintrakUserById } from "./lib/fintrakUsers";
 import { reportServerError } from "./lib/observability.server.js";
 import { readSessionFromCookieStore } from "./lib/serverAuth";
 import { getSupabaseAdmin, hasSupabaseAdminConfig } from "./lib/supabaseAdmin";
+import { readHomepageTestimonials } from "./lib/testimonials.js";
 
 const SUPPORT_EMAIL = "support@fintrak.online";
 
@@ -91,27 +92,6 @@ const HOW_IT_WORKS_STEPS = [
     title: "Review your insights",
     description:
       "See budgets, category trends, and clear summaries that show how your money moves.",
-  },
-];
-
-const TESTIMONIALS = [
-  {
-    name: "Ritik Shrivastav",
-    role: "CS Student, Vadodara",
-    quote:
-      "FinTrak helped me realize I was spending way too much on food delivery. Now I save Rs 3,000 a month!",
-  },
-  {
-    name: "Priya Kumari",
-    role: "College student, Patna",
-    quote:
-      "Finally a simple app that my parents can also use. The clean design makes it easy for everyone.",
-  },
-  {
-    name: "Rohan Verma",
-    role: "Small business owner, Lucknow",
-    quote:
-      "I used to write everything in a notebook. FinTrak gives me charts, spending categories, and monthly visibility in one place.",
   },
 ];
 
@@ -421,7 +401,108 @@ async function hasAuthenticatedHomeSession() {
   return Boolean(user);
 }
 
-function LandingPage({ authErrorMessage }) {
+async function loadHomepageTestimonials() {
+  if (!hasSupabaseAdminConfig()) {
+    return [];
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { testimonials, error } = await readHomepageTestimonials(supabase);
+
+  if (error) {
+    await reportServerError({
+      event: "homepage.testimonials.read_failed",
+      message: "Failed to load approved homepage testimonials.",
+      error,
+    });
+    return [];
+  }
+
+  return testimonials;
+}
+
+function TestimonialCard({ testimonial }) {
+  const avatarLabel = testimonial.name.charAt(0).toUpperCase();
+
+  return (
+    <div className="glass-card rounded-[2rem] p-6 text-left shadow-xl">
+      {testimonial.avatarUrl ? (
+        <Image
+          src={testimonial.avatarUrl}
+          alt={`${testimonial.name} testimonial avatar`}
+          width={44}
+          height={44}
+          className="h-11 w-11 rounded-2xl object-cover"
+        />
+      ) : (
+        <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-lg font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+          {avatarLabel}
+        </div>
+      )}
+      <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-300">
+        &ldquo;{testimonial.quote}&rdquo;
+      </p>
+      <div className="mt-6">
+        <p className="font-semibold text-slate-900 dark:text-white">
+          {testimonial.name}
+        </p>
+        {testimonial.meta ? (
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {testimonial.meta}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function TestimonialsSection({ testimonials }) {
+  const hasTestimonials = testimonials.length > 0;
+
+  return (
+    <section className="mt-12 sm:mt-16">
+      <div className="mb-8">
+        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600 dark:text-blue-300">
+          Testimonials
+        </p>
+        <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
+          {hasTestimonials ? "Real feedback from FinTrak users" : "Be one of the first featured users"}
+        </h2>
+        <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+          {hasTestimonials
+            ? "Only approved feedback from real users appears here."
+            : "We only publish approved feedback from real users with permission. Want to share your experience? Reach out and we can feature your quote after review."}
+        </p>
+      </div>
+
+      {hasTestimonials ? (
+        <div className="grid gap-5 md:grid-cols-3">
+          {testimonials.map((testimonial) => (
+            <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+          ))}
+        </div>
+      ) : (
+        <div className="glass-card mx-auto max-w-3xl rounded-[2rem] p-8 text-left shadow-xl">
+          <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
+            FinTrak is collecting early user feedback carefully and only publishing
+            testimonials that are approved for public use. If you use FinTrak and
+            want to be featured here, email us with your feedback and permission to
+            publish it.
+          </p>
+          <a
+            href={`mailto:${SUPPORT_EMAIL}?subject=FinTrak%20testimonial`}
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-lg transition hover:bg-blue-700"
+          >
+            <Mail size={18} />
+            Share Feedback
+          </a>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LandingPage({ authErrorMessage, testimonials }) {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_38%),linear-gradient(180deg,_#f8fbff_0%,_#edf4ff_48%,_#f8fafc_100%)] text-slate-900 dark:bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(180deg,_#020617_0%,_#081225_48%,_#020617_100%)] dark:text-slate-50">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
@@ -506,44 +587,7 @@ function LandingPage({ authErrorMessage }) {
             </div>
           </section>
 
-          <section className="mt-12 sm:mt-16">
-            <div className="mb-8">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600 dark:text-blue-300">
-                Testimonials
-              </p>
-              <h2 className="mt-3 text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
-                People love FinTrak
-              </h2>
-              <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-                From students to working professionals, everyone keeps track
-                with more confidence.
-              </p>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-3">
-              {TESTIMONIALS.map(({ name, role, quote }) => (
-                <div
-                  key={name}
-                  className="glass-card rounded-[2rem] p-6 text-left shadow-xl"
-                >
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-lg font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
-                    {name.charAt(0)}
-                  </div>
-                  <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                    &ldquo;{quote}&rdquo;
-                  </p>
-                  <div className="mt-6">
-                    <p className="font-semibold text-slate-900 dark:text-white">
-                      {name}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      {role}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <TestimonialsSection testimonials={testimonials} />
 
           <section
             id="contact"
@@ -639,11 +683,19 @@ function LandingPage({ authErrorMessage }) {
 export default async function Home({ searchParams }) {
   const params = await searchParams;
   const authErrorMessage = AUTH_ERROR_MESSAGES[params?.authError] || "";
-  const authenticated = await hasAuthenticatedHomeSession();
+  const [authenticated, testimonials] = await Promise.all([
+    hasAuthenticatedHomeSession(),
+    loadHomepageTestimonials(),
+  ]);
 
   if (authenticated) {
     return <HomeDashboardClient />;
   }
 
-  return <LandingPage authErrorMessage={authErrorMessage} />;
+  return (
+    <LandingPage
+      authErrorMessage={authErrorMessage}
+      testimonials={testimonials}
+    />
+  );
 }

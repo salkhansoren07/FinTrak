@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ListRestart,
   LogOut,
+  MessageSquareQuote,
   PiggyBank,
   SlidersHorizontal,
   Sparkles,
@@ -110,7 +111,7 @@ function PresetButton({ children, onClick }) {
 }
 
 export default function Sidebar({ onClose }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { dateFilter, setDateFilter } = useTransactions();
   const pathname = usePathname();
 
@@ -146,6 +147,16 @@ export default function Sidebar({ onClose }) {
       icon: UserRound,
       active: pathname.startsWith("/profile"),
     },
+    ...(user?.isAdmin
+      ? [
+          {
+            href: "/admin/testimonials",
+            label: "Admin Testimonials",
+            icon: MessageSquareQuote,
+            active: pathname.startsWith("/admin/testimonials"),
+          },
+        ]
+      : []),
   ];
 
   const setThisMonth = () => {

@@ -1,7 +1,11 @@
 "use client";
 
 const PUBLIC_ROUTES = new Set(["/", "/privacy", "/terms"]);
-const AUTH_FLOW_ROUTES = new Set(["/get-started"]);
+const AUTH_FLOW_ROUTES = new Set([
+  "/get-started",
+  "/forgot-password",
+  "/reset-password",
+]);
 
 function buildPinVerifiedKey(userId) {
   return userId ? `pin_verified:${userId}` : null;

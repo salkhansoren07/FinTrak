@@ -5,6 +5,19 @@ import {
 } from "./userDataProfile.mjs";
 
 const TABLE_NAME = "fintrak_users";
+const USER_SELECT_COLUMNS =
+  "id, username, email, password_hash, passcode_hash, gmail_refresh_token, gmail_email, gmail_subject, category_overrides, is_admin";
+const USER_SELECT_COLUMNS_WITHOUT_ADMIN =
+  "id, username, email, password_hash, passcode_hash, gmail_refresh_token, gmail_email, gmail_subject, category_overrides";
+
+function isMissingAdminColumn(error) {
+  const message = typeof error?.message === "string" ? error.message : "";
+
+  return (
+    (error?.code === "42703" || error?.code === "PGRST204") &&
+    message.includes("is_admin")
+  );
+}
 
 function normalizeEmail(email) {
   return email ? String(email).trim().toLowerCase() : "";
@@ -27,46 +40,66 @@ function mapUser(row) {
     gmailRefreshToken: row.gmail_refresh_token || null,
     gmailEmail: row.gmail_email || null,
     gmailSubject: row.gmail_subject || null,
+    isAdmin: Boolean(row.is_admin),
+  };
+}
+
+async function readUserQuery(queryBuilder) {
+  const initial = await queryBuilder(USER_SELECT_COLUMNS);
+
+  if (isMissingAdminColumn(initial.error)) {
+    const fallback = await queryBuilder(USER_SELECT_COLUMNS_WITHOUT_ADMIN);
+    return {
+      user: mapUser(fallback.data),
+      error: fallback.error,
+    };
+  }
+
+  return {
+    user: mapUser(initial.data),
+    error: initial.error,
   };
 }
 
 export async function getFintrakUserById(supabase, id) {
-  const { data, error } = await supabase
-    .from(TABLE_NAME)
-    .select(
-      "id, username, email, password_hash, passcode_hash, gmail_refresh_token, gmail_email, gmail_subject, category_overrides"
-    )
-    .eq("id", id)
-    .maybeSingle();
-
-  return { user: mapUser(data), error };
+  return readUserQuery((columns) =>
+    supabase.from(TABLE_NAME).select(columns).eq("id", id).maybeSingle()
+  );
 }
 
 export async function getFintrakUserByIdentifier(supabase, identifier) {
   const normalized = normalizeUsername(identifier);
   const normalizedEmail = normalizeEmail(identifier);
 
-  const byUsername = await supabase
-    .from(TABLE_NAME)
-    .select(
-      "id, username, email, password_hash, passcode_hash, gmail_refresh_token, gmail_email, gmail_subject, category_overrides"
-    )
-    .eq("username", normalized)
-    .maybeSingle();
+  const byUsername = await readUserQuery((columns) =>
+    supabase
+      .from(TABLE_NAME)
+      .select(columns)
+      .eq("username", normalized)
+      .maybeSingle()
+  );
 
-  if (byUsername.error || byUsername.data) {
-    return { user: mapUser(byUsername.data), error: byUsername.error };
+  if (byUsername.error || byUsername.user) {
+    return byUsername;
   }
 
-  const byEmail = await supabase
-    .from(TABLE_NAME)
-    .select(
-      "id, username, email, password_hash, passcode_hash, gmail_refresh_token, gmail_email, gmail_subject, category_overrides"
-    )
-    .eq("email", normalizedEmail)
-    .maybeSingle();
+  return readUserQuery((columns) =>
+    supabase
+      .from(TABLE_NAME)
+      .select(columns)
+      .eq("email", normalizedEmail)
+      .maybeSingle()
+  );
+}
 
-  return { user: mapUser(byEmail.data), error: byEmail.error };
+export async function getFintrakUserByEmail(supabase, email) {
+  return readUserQuery((columns) =>
+    supabase
+      .from(TABLE_NAME)
+      .select(columns)
+      .eq("email", normalizeEmail(email))
+      .maybeSingle()
+  );
 }
 
 export async function createFintrakUser(
@@ -96,6 +129,7 @@ export async function createFintrakUser(
           email: data.email || null,
           gmailConnected: Boolean(data.gmail_refresh_token),
           hasPasscode: Boolean(data.passcode_hash),
+          isAdmin: Boolean(data.is_admin),
         }
       : null,
     error,
@@ -125,6 +159,7 @@ export async function updateFintrakUserGmailConnection(
           email: data.email || null,
           gmailConnected: Boolean(data.gmail_refresh_token),
           hasPasscode: Boolean(data.passcode_hash),
+          isAdmin: Boolean(data.is_admin),
         }
       : null,
     error,
@@ -163,6 +198,19 @@ export async function clearFintrakUserPasscode(supabase, userId) {
     })
     .eq("id", userId)
     .select("id, passcode_hash")
+    .single();
+
+  return { data, error };
+}
+
+export async function updateFintrakUserPassword(supabase, userId, passwordHash) {
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .update({
+      password_hash: passwordHash,
+    })
+    .eq("id", userId)
+    .select("id, password_hash")
     .single();
 
   return { data, error };

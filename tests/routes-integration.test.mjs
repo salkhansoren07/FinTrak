@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { NextResponse } from "next/server.js";
-import { hashPassword } from "../app/lib/passwords.js";
+import { hashPassword, verifyPassword } from "../app/lib/passwords.js";
 import { encryptSecretValue } from "../app/lib/serverSecrets.js";
 import {
   applySessionCookie,
@@ -15,6 +15,7 @@ import {
   clearTrackedLoginAttemptState,
   resetTrackedLoginAttemptsForTests,
 } from "../app/lib/loginSecurity.mjs";
+import { resetPasswordResetRequestStateForTests } from "../app/lib/passwordReset.js";
 
 function cloneRow(row) {
   return row ? JSON.parse(JSON.stringify(row)) : row;
@@ -38,17 +39,91 @@ function pickColumns(row, columns) {
 
 function createSupabaseMock({
   users = [],
+  testimonials = [],
+  passwordResetTokens = [],
   updateError = null,
+  insertError = null,
   selectError = null,
 } = {}) {
   const state = {
     users: users.map((user) => cloneRow(user)),
+    testimonials: testimonials.map((testimonial) => cloneRow(testimonial)),
+    passwordResetTokens: passwordResetTokens.map((token) => cloneRow(token)),
     updateError,
+    insertError,
     selectError,
   };
 
   function matches(row, filters) {
     return filters.every(([column, value]) => row?.[column] === value);
+  }
+
+  function getRows(tableName) {
+    if (tableName === "fintrak_users") {
+      return state.users;
+    }
+
+    if (tableName === "testimonials") {
+      return state.testimonials;
+    }
+
+    if (tableName === "password_reset_tokens") {
+      return state.passwordResetTokens;
+    }
+
+    return null;
+  }
+
+  function setRows(tableName, nextRows) {
+    if (tableName === "fintrak_users") {
+      state.users = nextRows;
+    }
+
+    if (tableName === "testimonials") {
+      state.testimonials = nextRows;
+    }
+
+    if (tableName === "password_reset_tokens") {
+      state.passwordResetTokens = nextRows;
+    }
+  }
+
+  function sortRows(rows, orders) {
+    if (!orders.length) {
+      return rows;
+    }
+
+    const nextRows = [...rows];
+    nextRows.sort((left, right) => {
+      for (const [column, ascending] of orders) {
+        const leftValue = left?.[column];
+        const rightValue = right?.[column];
+
+        if (leftValue === rightValue) {
+          continue;
+        }
+
+        if (leftValue == null) {
+          return ascending ? 1 : -1;
+        }
+
+        if (rightValue == null) {
+          return ascending ? -1 : 1;
+        }
+
+        if (leftValue < rightValue) {
+          return ascending ? -1 : 1;
+        }
+
+        if (leftValue > rightValue) {
+          return ascending ? 1 : -1;
+        }
+      }
+
+      return 0;
+    });
+
+    return nextRows;
   }
 
   function createQuery(tableName) {
@@ -57,12 +132,22 @@ function createSupabaseMock({
       filters: [],
       payload: null,
       selectedColumns: null,
+      orders: [],
+      limitCount: null,
       select(columns) {
         this.selectedColumns = columns;
         return this;
       },
       eq(column, value) {
         this.filters.push([column, value]);
+        return this;
+      },
+      order(column, { ascending = true } = {}) {
+        this.orders.push([column, ascending]);
+        return this;
+      },
+      limit(count) {
+        this.limitCount = Number(count);
         return this;
       },
       insert(payload) {
@@ -79,8 +164,10 @@ function createSupabaseMock({
         this.action = "delete";
         return this;
       },
-      maybeSingle() {
-        if (tableName !== "fintrak_users") {
+      getSelectedRows() {
+        const rows = getRows(tableName);
+
+        if (!rows) {
           return { data: null, error: new Error("Unknown table") };
         }
 
@@ -88,21 +175,50 @@ function createSupabaseMock({
           return { data: null, error: state.selectError };
         }
 
-        const row = state.users.find((entry) => matches(entry, this.filters)) || null;
+        const filtered = rows.filter((entry) => matches(entry, this.filters));
+        const sorted = sortRows(filtered, this.orders);
+        const limited =
+          Number.isInteger(this.limitCount) && this.limitCount >= 0
+            ? sorted.slice(0, this.limitCount)
+            : sorted;
+
         return {
-          data: row ? pickColumns(row, this.selectedColumns) : null,
+          data: limited.map((row) => pickColumns(row, this.selectedColumns)),
+          error: null,
+        };
+      },
+      maybeSingle() {
+        const selected = this.getSelectedRows();
+        if (selected.error) {
+          return { data: null, error: selected.error };
+        }
+
+        const row = selected.data[0] || null;
+        return {
+          data: row,
           error: null,
         };
       },
       single() {
-        if (tableName !== "fintrak_users") {
+        const rows = getRows(tableName);
+        if (!rows) {
           return { data: null, error: new Error("Unknown table") };
         }
 
         if (this.action === "insert") {
-          state.users.push(cloneRow(this.payload));
+          if (state.insertError) {
+            return { data: null, error: state.insertError };
+          }
+
+          const nextRow = {
+            ...cloneRow(this.payload),
+            id:
+              this.payload?.id ||
+              `${tableName}-row-${rows.length + 1}`,
+          };
+          rows.push(nextRow);
           return {
-            data: pickColumns(this.payload, this.selectedColumns),
+            data: pickColumns(nextRow, this.selectedColumns),
             error: null,
           };
         }
@@ -112,7 +228,7 @@ function createSupabaseMock({
             return { data: null, error: state.updateError };
           }
 
-          const row = state.users.find((entry) => matches(entry, this.filters)) || null;
+          const row = rows.find((entry) => matches(entry, this.filters)) || null;
           if (!row) {
             return { data: null, error: new Error("Row not found") };
           }
@@ -128,8 +244,16 @@ function createSupabaseMock({
       },
       then(resolve) {
         if (this.action === "delete") {
-          state.users = state.users.filter((entry) => !matches(entry, this.filters));
+          const rows = getRows(tableName);
+          setRows(
+            tableName,
+            rows.filter((entry) => !matches(entry, this.filters))
+          );
           return Promise.resolve({ error: null }).then(resolve);
+        }
+
+        if (this.action === "select") {
+          return Promise.resolve(this.getSelectedRows()).then(resolve);
         }
 
         return Promise.resolve(this.single()).then(resolve);
@@ -183,11 +307,14 @@ function setBaseEnv() {
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID = "google-client-id";
   process.env.GOOGLE_CLIENT_SECRET = "google-client-secret";
   process.env.OBSERVABILITY_LOG_LEVEL = "info";
+  process.env.RESEND_API_KEY = "resend-test-key";
+  process.env.PASSWORD_RESET_EMAIL_FROM = "FinTrak <no-reply@fintrak.online>";
   delete process.env.OBSERVABILITY_WEBHOOK_URL;
 }
 
 function resetTestState() {
   resetTrackedLoginAttemptsForTests();
+  resetPasswordResetRequestStateForTests();
   clearSupabaseAdminForTests();
 }
 
@@ -493,6 +620,466 @@ test("observability route rate limits bursts from one client", async () => {
 
   assert.equal(response.status, 429);
   assert.deepEqual(await response.json(), { ok: false });
+});
+
+test("testimonial route saves a logged-in user's feedback as pending", async () => {
+  setBaseEnv();
+  resetTestState();
+
+  const supabase = createSupabaseMock({
+    users: [
+      {
+        id: "user-4",
+        username: "salkhan",
+        email: "salkhan@example.com",
+        password_hash: "unused",
+        passcode_hash: null,
+        gmail_refresh_token: null,
+        gmail_email: null,
+        gmail_subject: null,
+        category_overrides: {
+          categoryOverrides: {},
+          budgetTargets: {},
+        },
+      },
+    ],
+    testimonials: [],
+  });
+  setSupabaseAdminForTests(supabase);
+
+  const { POST, GET } = await import("../app/api/testimonials/route.js");
+  const sessionCookie = createSessionCookie({
+    id: "user-4",
+    username: "salkhan",
+    email: "salkhan@example.com",
+  });
+
+  const saveResponse = await POST(
+    createRequest({
+      url: "http://localhost/api/testimonials",
+      method: "POST",
+      cookies: {
+        fintrak_session: sessionCookie,
+      },
+      body: {
+        role: "Founder",
+        location: "Bengaluru",
+        quote:
+          "FinTrak helped me understand where small daily spending was adding up every month.",
+        consentToPublish: true,
+      },
+    })
+  );
+
+  assert.equal(saveResponse.status, 200);
+  const savePayload = await saveResponse.json();
+  assert.equal(savePayload.ok, true);
+  assert.equal(savePayload.submission.status, "pending");
+  assert.equal(supabase.state.testimonials.length, 1);
+  assert.equal(supabase.state.testimonials[0].user_id, "user-4");
+  assert.equal(supabase.state.testimonials[0].approved, false);
+
+  const readResponse = await GET(
+    createRequest({
+      url: "http://localhost/api/testimonials",
+      method: "GET",
+      cookies: {
+        fintrak_session: sessionCookie,
+      },
+    })
+  );
+
+  assert.equal(readResponse.status, 200);
+  const readPayload = await readResponse.json();
+  assert.equal(readPayload.available, true);
+  assert.equal(readPayload.submission.status, "pending");
+  assert.equal(readPayload.submission.role, "Founder");
+
+  resetTestState();
+});
+
+test("testimonial route updates an existing pending submission instead of duplicating it", async () => {
+  setBaseEnv();
+  resetTestState();
+
+  const supabase = createSupabaseMock({
+    users: [
+      {
+        id: "user-5",
+        username: "riya",
+        email: "riya@example.com",
+        password_hash: "unused",
+        passcode_hash: null,
+        gmail_refresh_token: null,
+        gmail_email: null,
+        gmail_subject: null,
+        category_overrides: {
+          categoryOverrides: {},
+          budgetTargets: {},
+        },
+      },
+    ],
+    testimonials: [
+      {
+        id: "testimonial-1",
+        user_id: "user-5",
+        name: "riya",
+        email: "riya@example.com",
+        role: "Student",
+        location: "Patna",
+        quote: "Old feedback that is still pending review.",
+        approved: false,
+        consent_to_publish: true,
+        created_at: "2026-04-07T00:00:00.000Z",
+        updated_at: "2026-04-07T00:00:00.000Z",
+      },
+    ],
+  });
+  setSupabaseAdminForTests(supabase);
+
+  const { POST } = await import("../app/api/testimonials/route.js");
+  const sessionCookie = createSessionCookie({
+    id: "user-5",
+    username: "riya",
+    email: "riya@example.com",
+  });
+
+  const response = await POST(
+    createRequest({
+      url: "http://localhost/api/testimonials",
+      method: "POST",
+      cookies: {
+        fintrak_session: sessionCookie,
+      },
+      body: {
+        role: "Student",
+        location: "Patna",
+        quote:
+          "Updated feedback with more detail about how FinTrak improves budgeting confidence.",
+        consentToPublish: true,
+      },
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(supabase.state.testimonials.length, 1);
+  assert.equal(
+    supabase.state.testimonials[0].quote,
+    "Updated feedback with more detail about how FinTrak improves budgeting confidence."
+  );
+
+  resetTestState();
+});
+
+test("session route returns admin state for admin users", async () => {
+  setBaseEnv();
+  resetTestState();
+
+  const supabase = createSupabaseMock({
+    users: [
+      {
+        id: "admin-1",
+        username: "admin",
+        email: "admin@example.com",
+        password_hash: "unused",
+        passcode_hash: null,
+        gmail_refresh_token: null,
+        gmail_email: null,
+        gmail_subject: null,
+        category_overrides: null,
+        is_admin: true,
+      },
+    ],
+  });
+  setSupabaseAdminForTests(supabase);
+
+  const { GET } = await import("../app/api/auth/session/route.js");
+  const sessionCookie = createSessionCookie({
+    id: "admin-1",
+    username: "admin",
+    email: "admin@example.com",
+  });
+
+  const response = await GET(
+    createRequest({
+      url: "http://localhost/api/auth/session",
+      cookies: {
+        fintrak_session: sessionCookie,
+      },
+    })
+  );
+
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.authenticated, true);
+  assert.equal(payload.user.isAdmin, true);
+
+  resetTestState();
+});
+
+test("admin testimonial route rejects non-admin users", async () => {
+  setBaseEnv();
+  resetTestState();
+
+  const supabase = createSupabaseMock({
+    users: [
+      {
+        id: "user-6",
+        username: "normaluser",
+        email: "normal@example.com",
+        password_hash: "unused",
+        passcode_hash: null,
+        gmail_refresh_token: null,
+        gmail_email: null,
+        gmail_subject: null,
+        category_overrides: null,
+        is_admin: false,
+      },
+    ],
+  });
+  setSupabaseAdminForTests(supabase);
+
+  const { GET } = await import("../app/api/admin/testimonials/route.js");
+  const sessionCookie = createSessionCookie({
+    id: "user-6",
+    username: "normaluser",
+    email: "normal@example.com",
+  });
+
+  const response = await GET(
+    createRequest({
+      url: "http://localhost/api/admin/testimonials",
+      cookies: {
+        fintrak_session: sessionCookie,
+      },
+    })
+  );
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), { error: "Forbidden" });
+
+  resetTestState();
+});
+
+test("admin testimonial route can approve and feature submissions", async () => {
+  setBaseEnv();
+  resetTestState();
+
+  const supabase = createSupabaseMock({
+    users: [
+      {
+        id: "admin-2",
+        username: "moderator",
+        email: "moderator@example.com",
+        password_hash: "unused",
+        passcode_hash: null,
+        gmail_refresh_token: null,
+        gmail_email: null,
+        gmail_subject: null,
+        category_overrides: null,
+        is_admin: true,
+      },
+    ],
+    testimonials: [
+      {
+        id: "testimonial-admin-1",
+        user_id: "user-4",
+        name: "salkhan",
+        email: "salkhan@example.com",
+        role: "Founder",
+        location: "Bengaluru",
+        quote: "Helpful product.",
+        approved: false,
+        featured: false,
+        consent_to_publish: true,
+        rejected_at: null,
+        reviewed_at: null,
+        created_at: "2026-04-08T00:00:00.000Z",
+        updated_at: "2026-04-08T00:00:00.000Z",
+      },
+    ],
+  });
+  setSupabaseAdminForTests(supabase);
+
+  const { GET, PATCH } = await import("../app/api/admin/testimonials/route.js");
+  const sessionCookie = createSessionCookie({
+    id: "admin-2",
+    username: "moderator",
+    email: "moderator@example.com",
+  });
+
+  const listResponse = await GET(
+    createRequest({
+      url: "http://localhost/api/admin/testimonials",
+      cookies: {
+        fintrak_session: sessionCookie,
+      },
+    })
+  );
+
+  assert.equal(listResponse.status, 200);
+  const listPayload = await listResponse.json();
+  assert.equal(listPayload.configured, true);
+  assert.equal(listPayload.testimonials.length, 1);
+  assert.equal(listPayload.testimonials[0].status, "pending");
+
+  const patchResponse = await PATCH(
+    createRequest({
+      url: "http://localhost/api/admin/testimonials",
+      method: "PATCH",
+      cookies: {
+        fintrak_session: sessionCookie,
+      },
+      body: {
+        id: "testimonial-admin-1",
+        action: "feature",
+        sortOrder: 1,
+      },
+    })
+  );
+
+  assert.equal(patchResponse.status, 200);
+  const patchPayload = await patchResponse.json();
+  assert.equal(patchPayload.ok, true);
+  assert.equal(patchPayload.testimonial.status, "approved");
+  assert.equal(patchPayload.testimonial.featured, true);
+  assert.equal(supabase.state.testimonials[0].approved, true);
+  assert.equal(supabase.state.testimonials[0].featured, true);
+  assert.equal(supabase.state.testimonials[0].sort_order, 1);
+
+  resetTestState();
+});
+
+test("forgot-password route creates a token and sends a reset email", async () => {
+  setBaseEnv();
+  resetTestState();
+
+  const passwordHash = await hashPassword("correct-password");
+  const supabase = createSupabaseMock({
+    users: [
+      {
+        id: "user-forgot",
+        username: "forgotuser",
+        email: "forgot@example.com",
+        password_hash: passwordHash,
+        passcode_hash: null,
+        gmail_refresh_token: null,
+        gmail_email: null,
+        gmail_subject: null,
+        category_overrides: null,
+        is_admin: false,
+      },
+    ],
+    passwordResetTokens: [],
+  });
+  setSupabaseAdminForTests(supabase);
+
+  const originalFetch = global.fetch;
+  let capturedEmail = null;
+  global.fetch = async (url, options = {}) => {
+    if (String(url) === "https://api.resend.com/emails") {
+      capturedEmail = JSON.parse(options.body);
+      return Response.json({ id: "email-1" }, { status: 200 });
+    }
+
+    throw new Error(`Unexpected fetch call in test: ${url}`);
+  };
+
+  try {
+    const { POST } = await import("../app/api/auth/forgot-password/route.js");
+    const response = await POST(
+      createRequest({
+        url: "http://localhost/api/auth/forgot-password",
+        method: "POST",
+        headers: { "x-forwarded-for": "203.0.113.55" },
+        body: {
+          email: "forgot@example.com",
+        },
+      })
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      ok: true,
+      message:
+        "If an account exists for that email, a password reset link has been sent.",
+    });
+    assert.equal(supabase.state.passwordResetTokens.length, 1);
+    assert.equal(supabase.state.passwordResetTokens[0].user_id, "user-forgot");
+    assert.equal(supabase.state.passwordResetTokens[0].email, "forgot@example.com");
+    assert.ok(capturedEmail);
+    assert.equal(capturedEmail.to[0], "forgot@example.com");
+    assert.match(capturedEmail.html, /reset-password\?token=/);
+  } finally {
+    global.fetch = originalFetch;
+    resetTestState();
+  }
+});
+
+test("reset-password route updates the stored password and invalidates reset tokens", async () => {
+  setBaseEnv();
+  resetTestState();
+
+  const originalPasswordHash = await hashPassword("old-password");
+  const supabase = createSupabaseMock({
+    users: [
+      {
+        id: "user-reset-password",
+        username: "resetuser",
+        email: "reset@example.com",
+        password_hash: originalPasswordHash,
+        passcode_hash: null,
+        gmail_refresh_token: null,
+        gmail_email: null,
+        gmail_subject: null,
+        category_overrides: null,
+        is_admin: false,
+      },
+    ],
+    passwordResetTokens: [],
+  });
+  setSupabaseAdminForTests(supabase);
+
+  const { createPasswordResetToken } = await import("../app/lib/passwordReset.js");
+  const { token, tokenHash, expiresAt } = createPasswordResetToken();
+  supabase.state.passwordResetTokens.push({
+    id: "reset-token-1",
+    user_id: "user-reset-password",
+    email: "reset@example.com",
+    token_hash: tokenHash,
+    expires_at: expiresAt,
+    used_at: null,
+    created_at: new Date().toISOString(),
+  });
+
+  const { POST } = await import("../app/api/auth/reset-password/route.js");
+  const response = await POST(
+    createRequest({
+      url: "http://localhost/api/auth/reset-password",
+      method: "POST",
+      body: {
+        token,
+        password: "brand-new-password",
+      },
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    message: "Your password has been reset successfully.",
+  });
+  assert.equal(supabase.state.passwordResetTokens.length, 0);
+  assert.notEqual(
+    supabase.state.users[0].password_hash,
+    originalPasswordHash
+  );
+  assert.equal(
+    await verifyPassword("brand-new-password", supabase.state.users[0].password_hash),
+    true
+  );
+
+  resetTestState();
 });
 
 test("signup route creates a FinTrak account and sets the session cookie", async () => {
