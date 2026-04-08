@@ -315,6 +315,7 @@ test("user-data route returns a failing status when cloud profile save fails", a
           fintrak_session: sessionCookie,
         },
         body: {
+          categoryOverrides: { txn1: "Food" },
           budgetTargets: { Food: 5000 },
         },
       })
@@ -414,6 +415,10 @@ test("observability route ingests client-side reports", async () => {
       createRequest({
         url: "http://localhost/api/observability",
         method: "POST",
+        headers: {
+          origin: "http://localhost",
+          "x-forwarded-for": "203.0.113.21",
+        },
         body: {
           level: "warn",
           event: "client.test_warning",
@@ -435,6 +440,59 @@ test("observability route ingests client-side reports", async () => {
     assert.equal(payload.context.source, "client");
     assert.equal(payload.context.feature, "unlock");
   });
+});
+
+test("observability route rejects cross-origin reports", async () => {
+  setBaseEnv();
+
+  const { POST } = await import("../app/api/observability/route.js");
+  const response = await POST(
+    createRequest({
+      url: "http://localhost/api/observability",
+      method: "POST",
+      headers: {
+        origin: "https://attacker.example",
+        "x-forwarded-for": "203.0.113.22",
+      },
+      body: {
+        level: "error",
+        event: "client.bad",
+        message: "malicious",
+      },
+    })
+  );
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), { ok: false });
+});
+
+test("observability route rate limits bursts from one client", async () => {
+  setBaseEnv();
+
+  const { POST } = await import("../app/api/observability/route.js");
+
+  let response = null;
+
+  for (let attempt = 0; attempt <= 20; attempt += 1) {
+    response = await POST(
+      createRequest({
+        url: "http://localhost/api/observability",
+        method: "POST",
+        headers: {
+          origin: "http://localhost",
+          "x-forwarded-for": "203.0.113.23",
+        },
+        body: {
+          level: "info",
+          event: "client.burst",
+          message: `attempt-${attempt}`,
+        },
+      })
+    );
+  }
+
+  assert.equal(response.status, 429);
+  assert.deepEqual(await response.json(), { ok: false });
 });
 
 test("signup route creates a FinTrak account and sets the session cookie", async () => {

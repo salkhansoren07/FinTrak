@@ -12,6 +12,7 @@ import {
   readBudgetTargets,
   writeBudgetTargets,
 } from "../lib/budgetStorage.mjs";
+import { readCategoryOverrides } from "../lib/categoryOverridesStorage.mjs";
 
 function formatCurrency(value) {
   return `Rs ${Number(value || 0).toLocaleString("en-IN")}`;
@@ -159,6 +160,7 @@ export default function BudgetPage() {
 
       try {
         const result = await saveCloudUserData({
+          categoryOverrides: readCategoryOverrides(user.id),
           budgetTargets: sanitizedBudgets,
         });
         setBudgets(sanitizedBudgets);

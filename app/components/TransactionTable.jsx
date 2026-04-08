@@ -7,11 +7,14 @@ import {
   writeCategoryOverrides,
 } from "../lib/categoryOverridesStorage.mjs";
 import { useAuth } from "../context/AuthContext";
+import { useTransactions } from "../context/TransactionContext";
 import { DEFAULT_CATEGORIES } from "../lib/categoryConfig.mjs";
 import { reportClientWarning } from "../lib/observability.client.js";
+import { readBudgetTargets } from "../lib/budgetStorage.mjs";
 
 export default function TransactionTable({ transactions = [] }) {
   const { user } = useAuth();
+  const { setTransactions } = useTransactions();
   const [displayTransactions, setDisplayTransactions] = useState(transactions);
   const [syncNotice, setSyncNotice] = useState("");
 
@@ -34,11 +37,24 @@ export default function TransactionTable({ transactions = [] }) {
           : transaction
       )
     );
+    setTransactions((current) =>
+      current.map((transaction) =>
+        transaction.id === id
+          ? {
+              ...transaction,
+              category,
+            }
+          : transaction
+      )
+    );
     writeCategoryOverrides(user?.id, existing);
     setSyncNotice("");
 
     try {
-      await saveCloudUserData({ categoryOverrides: existing });
+      await saveCloudUserData({
+        categoryOverrides: existing,
+        budgetTargets: readBudgetTargets(user?.id),
+      });
       setSyncNotice("Category synced to your account.");
     } catch (error) {
       reportClientWarning({

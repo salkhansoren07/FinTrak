@@ -19,6 +19,7 @@ import {
   readCategoryOverrides,
   writeCategoryOverrides,
 } from "../lib/categoryOverridesStorage.mjs";
+import { readBudgetTargets } from "../lib/budgetStorage.mjs";
 
 const TransactionContext = createContext();
 
@@ -155,7 +156,10 @@ export function TransactionProvider({ children }) {
           Object.keys(localOverrides).length > 0 &&
           Object.keys(cloudOverrides).length === 0
         ) {
-          saveCloudUserData({ categoryOverrides: overrides }).catch((error) => {
+          saveCloudUserData({
+            categoryOverrides: overrides,
+            budgetTargets: readBudgetTargets(user?.id),
+          }).catch((error) => {
             reportClientWarning({
               event: "transactions.cloud_sync_write_failed",
               message: "Cloud sync write failed while persisting category overrides.",

@@ -96,8 +96,8 @@ const HOW_IT_WORKS_STEPS = [
 
 const TESTIMONIALS = [
   {
-    name: "Aarav Mehta",
-    role: "Software engineer, Bengaluru",
+    name: "Ritik Shrivastav",
+    role: "CS Student, Vadodara",
     quote:
       "FinTrak helped me realize I was spending way too much on food delivery. Now I save Rs 3,000 a month!",
   },
@@ -105,7 +105,7 @@ const TESTIMONIALS = [
     name: "Priya Kumari",
     role: "College student, Patna",
     quote:
-      "Finally a simple app in Hindi that my parents can also use. The clean design makes it easy for everyone.",
+      "Finally a simple app that my parents can also use. The clean design makes it easy for everyone.",
   },
   {
     name: "Rohan Verma",

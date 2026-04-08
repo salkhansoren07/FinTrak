@@ -4,14 +4,15 @@ import {
   hasSupabaseAdminConfig,
 } from "../../lib/supabaseAdmin.js";
 import { readSessionFromRequest } from "../../lib/serverAuth.js";
-import {
-  getFintrakUserById,
-  updateFintrakUserDataProfile,
-} from "../../lib/fintrakUsers.js";
+import { updateFintrakUserDataProfile } from "../../lib/fintrakUsers.js";
 import {
   reportServerError,
   reportServerWarning,
 } from "../../lib/observability.server.js";
+
+function isObjectRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
 
 export async function GET(req) {
   try {
@@ -82,13 +83,25 @@ export async function PUT(req) {
 
     const body = await req.json();
     const categoryOverrides =
-      body?.categoryOverrides && typeof body.categoryOverrides === "object"
+      isObjectRecord(body?.categoryOverrides)
         ? body.categoryOverrides
         : null;
     const budgetTargets =
-      body?.budgetTargets && typeof body.budgetTargets === "object"
+      isObjectRecord(body?.budgetTargets)
         ? body.budgetTargets
         : null;
+
+    if (!categoryOverrides || !budgetTargets) {
+      return NextResponse.json(
+        {
+          ok: false,
+          cloudSyncAvailable: true,
+          error:
+            "Both categoryOverrides and budgetTargets are required for cloud sync saves.",
+        },
+        { status: 400 }
+      );
+    }
 
     if (!hasSupabaseAdminConfig()) {
       return NextResponse.json(
@@ -102,32 +115,9 @@ export async function PUT(req) {
     }
 
     const supabase = getSupabaseAdmin();
-    const { user: currentUser, error: currentUserError } = await getFintrakUserById(
-      supabase,
-      user.id
-    );
-
-    if (currentUserError || !currentUser) {
-      await reportServerError({
-        event: "user_data.write.profile_lookup_failed",
-        message: "Failed to load user profile before save.",
-        error: currentUserError,
-        request: req,
-        context: { sessionUserId: user.id },
-      });
-      return NextResponse.json(
-        {
-          ok: false,
-          cloudSyncAvailable: false,
-          error: "Could not load your cloud profile before saving.",
-        },
-        { status: 503 }
-      );
-    }
-
     const { error } = await updateFintrakUserDataProfile(supabase, user.id, {
-      categoryOverrides: categoryOverrides ?? currentUser.categoryOverrides,
-      budgetTargets: budgetTargets ?? currentUser.budgetTargets,
+      categoryOverrides,
+      budgetTargets,
     });
 
     if (error) {
