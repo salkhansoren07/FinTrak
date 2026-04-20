@@ -43,6 +43,11 @@ import {
   normalizeHomepageTestimonial,
   normalizeTestimonialSubmission,
 } from "../app/lib/testimonials.js";
+import {
+  buildTransactionCsv,
+  createTransactionExplorerState,
+  filterAndSortTransactions,
+} from "../app/lib/transactionExplorer.mjs";
 
 function createStorage() {
   const values = new Map();
@@ -267,4 +272,78 @@ test("testimonial helpers normalize approved homepage content safely", () => {
       updatedAt: "2026-04-08T00:00:00.000Z",
     }
   );
+});
+
+test("transaction explorer filters search and sorts the current view", () => {
+  const transactions = [
+    {
+      id: "txn-1",
+      bank: "HDFC",
+      category: "Food",
+      type: "Debit",
+      vpa: "swiggy@ibl",
+      amount: 450,
+      timestamp: 300,
+      dateLabel: "12 Apr",
+    },
+    {
+      id: "txn-2",
+      bank: "SBI",
+      category: "Bills",
+      type: "Debit",
+      vpa: "bescom@axis",
+      amount: 1200,
+      timestamp: 100,
+      dateLabel: "03 Apr",
+    },
+    {
+      id: "txn-3",
+      bank: "HDFC",
+      category: "Salary",
+      type: "Credit",
+      vpa: "company@pay",
+      amount: 25000,
+      timestamp: 200,
+      dateLabel: "07 Apr",
+    },
+  ];
+
+  const explorer = {
+    ...createTransactionExplorerState(),
+    search: "hdfc",
+    type: "Debit",
+    sort: "amount-desc",
+  };
+
+  assert.deepEqual(
+    filterAndSortTransactions(transactions, explorer).map((transaction) => transaction.id),
+    ["txn-1"]
+  );
+
+  assert.deepEqual(
+    filterAndSortTransactions(transactions, {
+      ...createTransactionExplorerState(),
+      sort: "date-asc",
+    }).map((transaction) => transaction.id),
+    ["txn-2", "txn-3", "txn-1"]
+  );
+});
+
+test("transaction explorer csv export uses visible rows and escapes values", () => {
+  const csv = buildTransactionCsv([
+    {
+      id: "txn-7",
+      dateLabel: "15 Apr",
+      timestamp: 1713200000000,
+      bank: 'HDFC, "Preferred"',
+      type: "Debit",
+      category: "Food",
+      vpa: "cafe@ibl",
+      amount: 320.5,
+    },
+  ]);
+
+  assert.match(csv, /Date,Timestamp,Bank,Type,Category,VPA,Amount/);
+  assert.match(csv, /"HDFC, ""Preferred"""/);
+  assert.match(csv, /15 Apr,1713200000000,/);
 });
