@@ -460,6 +460,63 @@ test("user-data route returns a failing status when cloud profile save fails", a
   resetTestState();
 });
 
+test("user-data route returns the stored cloud profile for an authenticated user", async () => {
+  setBaseEnv();
+  resetTestState();
+
+  const supabase = createSupabaseMock({
+    users: [
+      {
+        id: "user-2a",
+        username: "riya",
+        email: "riya@example.com",
+        password_hash: "unused",
+        passcode_hash: null,
+        gmail_refresh_token: null,
+        gmail_email: null,
+        gmail_subject: null,
+        category_overrides: {
+          version: 1,
+          categoryOverrides: {
+            txn1: "Food",
+          },
+          budgetTargets: {
+            Food: 5000,
+          },
+        },
+      },
+    ],
+  });
+  setSupabaseAdminForTests(supabase);
+
+  const { GET } = await import("../app/api/user-data/route.js");
+  const sessionCookie = createSessionCookie({
+    id: "user-2a",
+    username: "riya",
+    email: "riya@example.com",
+  });
+
+  const response = await GET(
+    createRequest({
+      url: "http://localhost/api/user-data",
+      method: "GET",
+      cookies: {
+        fintrak_session: sessionCookie,
+      },
+    })
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    categoryOverrides: { txn1: "Food" },
+    budgetTargets: { Food: 5000 },
+    userKey: "user-2a",
+    cloudSyncAvailable: true,
+  });
+
+  resetTestState();
+});
+
 test("account deletion still succeeds when Google token revocation fails", async () => {
   setBaseEnv();
   resetTestState();

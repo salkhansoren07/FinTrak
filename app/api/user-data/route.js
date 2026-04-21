@@ -4,7 +4,10 @@ import {
   hasSupabaseAdminConfig,
 } from "../../lib/supabaseAdmin.js";
 import { readSessionFromRequest } from "../../lib/serverAuth.js";
-import { updateFintrakUserDataProfile } from "../../lib/fintrakUsers.js";
+import {
+  getFintrakUserById,
+  updateFintrakUserDataProfile,
+} from "../../lib/fintrakUsers.js";
 import {
   reportServerError,
   reportServerWarning,
