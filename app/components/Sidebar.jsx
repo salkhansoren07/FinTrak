@@ -142,6 +142,12 @@ export default function Sidebar({ onClose }) {
       active: pathname.startsWith("/budget"),
     },
     {
+      href: "/insights",
+      label: "FinTrak Insights",
+      icon: Sparkles,
+      active: pathname.startsWith("/insights"),
+    },
+    {
       href: "/profile",
       label: "Profile",
       icon: UserRound,

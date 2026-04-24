@@ -29,6 +29,13 @@ function getPageMeta(pathname) {
     };
   }
 
+  if (pathname.startsWith("/insights")) {
+    return {
+      title: "FinTrak Insights",
+      subtitle: "Read AI summaries and signals for the active transaction filter.",
+    };
+  }
+
   if (pathname.startsWith("/admin/testimonials")) {
     return {
       title: "Testimonial Moderation",

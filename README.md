@@ -92,6 +92,8 @@ Set these in Vercel Project -> Settings -> Environment Variables:
 - `APP_SESSION_SECRET` (recommended, but the app can fall back to the server secret in development)
 - `OBSERVABILITY_LOG_LEVEL` (`info` by default; supports `debug`, `info`, `warn`, `error`)
 - `OBSERVABILITY_WEBHOOK_URL` (optional; forwards structured warn/error events to your monitoring webhook)
+- `GROQ_API_KEY` (optional; enables Groq-powered transaction insights on the dashboard)
+- `GROQ_MODEL` (optional; defaults to `openai/gpt-oss-20b`)
 - `RESEND_API_KEY` (required for forgot-password email delivery)
 - `PASSWORD_RESET_EMAIL_FROM` (recommended sender address for forgot-password emails)
 - `EMAIL_FROM_ADDRESS` (optional fallback if `PASSWORD_RESET_EMAIL_FROM` is not set)

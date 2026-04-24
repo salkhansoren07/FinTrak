@@ -17,6 +17,7 @@ export default function robots() {
           "/api/",
           "/bank/",
           "/budget",
+          "/insights",
           "/individual",
           "/individual/",
           "/passcode",

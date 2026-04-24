@@ -23,6 +23,7 @@ const MAX_MESSAGES = 200;
 const DETAIL_CONCURRENCY = 8;
 const SERVER_CACHE_TTL_MS = 2 * 60 * 1000;
 const MAX_TRANSACTION_CACHE_ENTRIES = 200;
+const TRANSACTION_PARSER_VERSION = 2;
 
 const transactionCache = new Map();
 
@@ -38,6 +39,10 @@ function getCachedTransactions(userKey) {
   pruneExpiredTransactionCache();
   const entry = transactionCache.get(userKey);
   if (!entry) return null;
+  if (entry.parserVersion !== TRANSACTION_PARSER_VERSION) {
+    transactionCache.delete(userKey);
+    return null;
+  }
 
   return entry;
 }
@@ -47,6 +52,7 @@ function setCachedTransactions(userKey, payload) {
   transactionCache.delete(userKey);
   transactionCache.set(userKey, {
     ...payload,
+    parserVersion: TRANSACTION_PARSER_VERSION,
     savedAt: Date.now(),
   });
 
@@ -66,7 +72,11 @@ function buildSharedTransactionCacheKey(userKey) {
 async function readTransactionCache(userKey) {
   if (hasSharedRedisConfig()) {
     try {
-      return await getSharedJson(buildSharedTransactionCacheKey(userKey));
+      const shared = await getSharedJson(buildSharedTransactionCacheKey(userKey));
+      if (shared?.parserVersion !== TRANSACTION_PARSER_VERSION) {
+        return getCachedTransactions(userKey);
+      }
+      return shared;
     } catch {
       return getCachedTransactions(userKey);
     }
@@ -82,6 +92,7 @@ async function writeTransactionCache(userKey, payload) {
         buildSharedTransactionCacheKey(userKey),
         {
           ...payload,
+          parserVersion: TRANSACTION_PARSER_VERSION,
           savedAt: Date.now(),
         },
         SERVER_CACHE_TTL_MS / 1000

@@ -51,6 +51,45 @@ function extractSenderAddress(from) {
   return email.trim().toLowerCase();
 }
 
+const BANK_DEFINITIONS = [
+  {
+    name: "HDFC",
+    senderRegex: /\bhdfc(?:bank)?\b/i,
+    contextRegex:
+      /\bhdfc(?:\s+bank)?\b(?=[^.!?\n]{0,48}\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b)|\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b(?=[^.!?\n]{0,48}\bhdfc(?:\s+bank)?\b)/i,
+  },
+  {
+    name: "SBI",
+    senderRegex: /\b(?:sbi|statebank|state-bank)\b/i,
+    contextRegex:
+      /\b(?:sbi|state\s+bank)(?:\s+of\s+india)?\b(?=[^.!?\n]{0,48}\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b)|\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b(?=[^.!?\n]{0,48}\b(?:sbi|state\s+bank)(?:\s+of\s+india)?\b)/i,
+  },
+  {
+    name: "ICICI",
+    senderRegex: /\bicici(?:bank)?\b/i,
+    contextRegex:
+      /\bicici(?:\s+bank)?\b(?=[^.!?\n]{0,48}\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b)|\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b(?=[^.!?\n]{0,48}\bicici(?:\s+bank)?\b)/i,
+  },
+  {
+    name: "Axis",
+    senderRegex: /\baxis(?:bank)?\b/i,
+    contextRegex:
+      /\baxis(?:\s+bank)?\b(?=[^.!?\n]{0,48}\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b)|\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b(?=[^.!?\n]{0,48}\baxis(?:\s+bank)?\b)/i,
+  },
+  {
+    name: "Kotak",
+    senderRegex: /\bkotak\b/i,
+    contextRegex:
+      /\bkotak(?:\s+bank)?\b(?=[^.!?\n]{0,48}\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b)|\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b(?=[^.!?\n]{0,48}\bkotak(?:\s+bank)?\b)/i,
+  },
+  {
+    name: "PNB",
+    senderRegex: /\b(?:pnb|punjabnational)\b/i,
+    contextRegex:
+      /\b(?:pnb|punjab\s+national)(?:\s+bank)?\b(?=[^.!?\n]{0,48}\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b)|\b(?:account|a\/c|ac(?:count)?|card|wallet|alert|txn|transaction|credited|debited|spent|paid|received|ending)\b(?=[^.!?\n]{0,48}\b(?:pnb|punjab\s+national)(?:\s+bank)?\b)/i,
+  },
+];
+
 function extractAmount(text) {
   const patterns = [
     /(?:INR|Rs\.?|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i,
@@ -111,6 +150,27 @@ function extractVpa(text) {
   return "N/A";
 }
 
+function detectBank({ subject, from, senderAddress, body }) {
+  const senderContext = normalizeText(`${from} ${senderAddress}`);
+  const prioritizedContexts = [subject, body, normalizeText(`${subject} ${body}`)];
+
+  for (const bank of BANK_DEFINITIONS) {
+    if (bank.senderRegex.test(senderContext)) {
+      return bank.name;
+    }
+  }
+
+  for (const context of prioritizedContexts) {
+    for (const bank of BANK_DEFINITIONS) {
+      if (bank.contextRegex.test(context)) {
+        return bank.name;
+      }
+    }
+  }
+
+  return "Other";
+}
+
 export function parseTransaction(email) {
   if (!email?.payload) return null;
 
@@ -137,21 +197,14 @@ export function parseTransaction(email) {
   const amount = extractAmount(fullContext);
   const type = detectType(fullContext);
   const vpa = extractVpa(fullContext);
+  const bank = detectBank({
+    subject,
+    from,
+    senderAddress,
+    body: decoded,
+  });
 
-  // 2. Enhanced Bank Detection
-  const bankPatterns = [
-    { name: "HDFC", regex: /HDFC/i },
-    { name: "SBI", regex: /SBI|State Bank/i },
-    { name: "ICICI", regex: /ICICI/i },
-    { name: "Axis", regex: /Axis/i },
-    { name: "Kotak", regex: /Kotak/i },
-    { name: "PNB", regex: /PNB|Punjab National/i },
-  ];
-
-  // We search the 'fullContext' (Subject + From + Body)
-  const foundBank = bankPatterns.find((b) => b.regex.test(fullContext));
-  const bank = foundBank ? foundBank.name : "Other";
-// 3. Category Detection (rule based)
+  // 3. Category Detection (rule based)
 
   let category = "Other";
 

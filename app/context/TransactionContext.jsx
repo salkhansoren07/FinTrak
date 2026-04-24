@@ -23,7 +23,7 @@ import { readBudgetTargets } from "../lib/budgetStorage.mjs";
 
 const TransactionContext = createContext();
 
-const TRANSACTION_CACHE_VERSION = 1;
+const TRANSACTION_CACHE_VERSION = 2;
 const TRANSACTION_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function readTransactionCache(userKey) {
